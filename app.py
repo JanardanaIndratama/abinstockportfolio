@@ -28,12 +28,11 @@ def calc_fee(market, trade_type, gross_amount):
     else:
         return round(gross_amount * 0.003, 2)
 
-# Accounting calculations
+# Accounting calculations (AVG vs FIFO)
 def compute_holdings(transactions, method="AVG"):
     if not transactions:
         return {}
     
-    # Sort chronologically
     df_tx = pd.DataFrame(transactions).sort_values("transaction_date")
     holdings = {}
     
@@ -121,36 +120,19 @@ cost_method = st.radio("Cost Basis Method:", ["AVG", "FIFO"], horizontal=True)
 tab_idx, tab_us = st.tabs(["🇮🇩 IDX Market", "🇺🇸 US Stocks"])
 
 def render_market_dashboard(market, currency, buy_universe):
-    # Fetch Cash Balance
-    cash_res = supabase.table("cash_balances").select("balance").eq("market", market).execute()
-    current_cash = float(cash_res.data[0]["balance"]) if cash_res.data else 0.0
-    
-    # Fetch Transactions
+    # Fetch Transactions directly (no cash balance queries)
     tx_res = supabase.table("stock_transactions").select("*").eq("market", market).execute()
     transactions = tx_res.data or []
     
     holdings = compute_holdings(transactions, method=cost_method)
     
-    # Display Cash & Portfolio Value
-    col_c1, col_c2 = st.columns(2)
-    col_c1.metric(f"Available Cash ({currency})", f"{current_cash:,.2f}")
-    
-    with st.expander("💳 Deposit / Withdraw Cash"):
-        c_type = st.selectbox("Action", ["DEPOSIT", "WITHDRAW"], key=f"c_type_{market}")
-        c_amt = st.number_input("Amount", min_value=1.0, step=1000.0 if market == "IDX" else 10.0, key=f"c_amt_{market}")
-        if st.button("Submit Cash Update", key=f"c_btn_{market}"):
-            new_bal = current_cash + c_amt if c_type == "DEPOSIT" else current_cash - c_amt
-            if new_bal < 0:
-                st.error("Insufficient cash for withdrawal.")
-            else:
-                supabase.table("cash_balances").update({"balance": new_bal}).eq("market", market).execute()
-                st.success("Cash updated.")
-                st.rerun()
-
     st.subheader("💼 My Portfolio")
     
     # Live Quotes for Holdings
     live_prices = {}
+    total_market_val = 0.0
+    total_cost_basis = 0.0
+    
     if holdings:
         tickers = list(holdings.keys())
         yf_tickers = [f"{t}.JK" if market == "IDX" else t for t in tickers]
@@ -167,11 +149,11 @@ def render_market_dashboard(market, currency, buy_universe):
                 live_prices[t] = holdings[t]["avg_cost"]
                 
         table_rows = []
-        total_market_val = 0.0
         for t, h in holdings.items():
             curr_p = live_prices.get(t, h["avg_cost"])
             val = h["shares"] * curr_p
             total_market_val += val
+            total_cost_basis += h["total_cost"]
             pnl_val = val - h["total_cost"]
             pnl_pct = (pnl_val / h["total_cost"] * 100) if h["total_cost"] > 0 else 0
             
@@ -185,13 +167,23 @@ def render_market_dashboard(market, currency, buy_universe):
                 "P&L": f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
             })
             
-        col_c2.metric("Stock Holdings Value", f"{total_market_val:,.2f}")
+        # Summary Cards (Portfolio Value, Total Cost, Total P&L)
+        net_pnl = total_market_val - total_cost_basis
+        net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric(f"Portfolio Value ({currency})", f"{total_market_val:,.2f}")
+        c2.metric(f"Total Cost Basis ({currency})", f"{total_cost_basis:,.2f}")
+        c3.metric(f"Unrealized P&L ({currency})", f"{net_pnl:+,.2f}", f"{net_pnl_pct:+.2f}%")
+        
         st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
     else:
-        col_c2.metric("Stock Holdings Value", "0.00")
+        c1, c2 = st.columns(2)
+        c1.metric(f"Portfolio Value ({currency})", "0.00")
+        c2.metric(f"Total Cost Basis ({currency})", "0.00")
         st.info("No stocks currently held in this portfolio.")
 
-    # Buy / Sell Form
+    # Buy / Sell Form (Without cash limits)
     with st.expander("➕ Log Stock Transaction (BUY / SELL)"):
         f_type = st.selectbox("Type", ["BUY", "SELL"], key=f"f_type_{market}")
         f_ticker = st.text_input("Ticker Symbol (e.g. BBCA, AAPL)", key=f"f_tick_{market}").upper().strip()
@@ -206,26 +198,19 @@ def render_market_dashboard(market, currency, buy_universe):
         if st.button("Execute Trade", key=f"f_btn_{market}"):
             if not f_ticker:
                 st.error("Please provide a ticker symbol.")
+            elif f_type == "SELL" and holdings.get(f_ticker, {}).get("shares", 0) < shares:
+                st.error("You cannot sell more shares than you hold.")
             else:
-                total_req = gross + fee if f_type == "BUY" else gross - fee
-                if f_type == "BUY" and current_cash < total_req:
-                    st.error("Insufficient cash balance for this BUY.")
-                elif f_type == "SELL" and holdings.get(f_ticker, {}).get("shares", 0) < shares:
-                    st.error("You cannot sell more shares than you hold.")
-                else:
-                    supabase.table("stock_transactions").insert({
-                        "market": market,
-                        "ticker": f_ticker,
-                        "type": f_type,
-                        "shares": shares,
-                        "price_per_share": f_price,
-                        "fee": fee
-                    }).execute()
-                    
-                    new_cash = current_cash - total_req if f_type == "BUY" else current_cash + total_req
-                    supabase.table("cash_balances").update({"balance": new_cash}).eq("market", market).execute()
-                    st.success("Trade recorded.")
-                    st.rerun()
+                supabase.table("stock_transactions").insert({
+                    "market": market,
+                    "ticker": f_ticker,
+                    "type": f_type,
+                    "shares": shares,
+                    "price_per_share": f_price,
+                    "fee": fee
+                }).execute()
+                st.success(f"Successfully recorded {f_type} order for {f_ticker}.")
+                st.rerun()
 
     # News for Owned Stocks
     st.subheader("📰 News for Owned Stocks")
