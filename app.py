@@ -56,12 +56,6 @@ st.markdown("""
     margin-top: 0.35rem;
   }
 
-  .kpi-sub {
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-top: 0.25rem;
-  }
-
   /* Stock Holding Cards */
   .stock-card {
     background: rgba(20, 26, 42, 0.7);
@@ -76,6 +70,30 @@ st.markdown("""
   .stock-card:hover {
     border-color: rgba(99, 102, 241, 0.4);
     transform: translateY(-2px);
+  }
+
+  /* Sector Summary Container */
+  .sector-container {
+    background: rgba(18, 24, 40, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    backdrop-filter: blur(8px);
+  }
+
+  .sector-pill {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.5rem;
+    margin-bottom: 0.4rem;
   }
 
   /* Badges */
@@ -143,7 +161,19 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# 5. Real-Time Price Fetcher
+# 5. Cached Sector Lookup (24h Cache to prevent rate limits)
+@st.cache_data(ttl=86400)
+def fetch_stock_sector(symbol):
+    try:
+        t = yf.Ticker(symbol)
+        sec = t.info.get("sector") or t.info.get("industry")
+        if sec:
+            return sec.strip()
+    except Exception:
+        pass
+    return "Diversified / Other"
+
+# 6. Real-Time Price Fetcher
 def fetch_realtime_price(symbol):
     try:
         t = yf.Ticker(symbol)
@@ -173,7 +203,7 @@ def fetch_realtime_price(symbol):
         pass
     return None
 
-# 6. Accounting Calculations
+# 7. Accounting Calculations
 def compute_holdings(transactions, method="AVG"):
     if not transactions:
         return {}
@@ -258,7 +288,7 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 7. Header Controls
+# 8. Header Controls
 st.markdown("### ⚡ FinTech Swing Radar")
 
 ctrl_c1, ctrl_c2 = st.columns([3, 1])
@@ -275,6 +305,7 @@ def render_market_dashboard(market, currency, buy_universe):
     holdings = compute_holdings(transactions, method=cost_method)
 
     live_prices = {}
+    holding_sectors = {}
     total_market_val = 0.0
     total_cost_basis = 0.0
 
@@ -284,6 +315,8 @@ def render_market_dashboard(market, currency, buy_universe):
             yf_sym = f"{t}.JK" if market == "IDX" else t
             price = fetch_realtime_price(yf_sym)
             live_prices[t] = price if price is not None else holdings[t]["avg_cost"]
+            holding_sectors[t] = fetch_stock_sector(yf_sym)
+            
             val = holdings[t]["shares"] * live_prices[t]
             total_market_val += val
             total_cost_basis += holdings[t]["total_cost"]
@@ -319,40 +352,77 @@ def render_market_dashboard(market, currency, buy_universe):
         </div>
     """, unsafe_allow_html=True)
 
-    # Portfolio Holdings Section
-    st.markdown("#### 💼 Portfolio Holdings")
-    if holdings:
-        # 2-Column Responsive Card Grid
-        h_cols = st.columns(2)
-        idx_counter = 0
+    # 9. Industry / Sector Breakdown Section
+    st.markdown("#### 🏢 Industry Allocation")
+    if holdings and total_market_val > 0:
+        sector_weights = {}
         for t, h in holdings.items():
-            curr_p = live_prices[t]
-            val = h["shares"] * curr_p
-            pnl_val = val - h["total_cost"]
-            pnl_pct = (pnl_val / h["total_cost"] * 100) if h["total_cost"] > 0 else 0
+            sec = holding_sectors.get(t, "Diversified / Other")
+            mkt_v = h["shares"] * live_prices.get(t, h["avg_cost"])
+            sector_weights[sec] = sector_weights.get(sec, 0.0) + mkt_v
 
-            qty_label = f"{int(h['shares']/100)} Lots" if market == "IDX" else f"{h['shares']:,.2f} Shares"
-            cost_str = f"{h['avg_cost']:,.2f}"
-            val_str = f"{val:,.2f} {currency}"
-            pnl_str = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
-            badge = "badge-green" if pnl_val >= 0 else "badge-red"
+        # Render Sector Allocation Pills
+        pills_html = '<div class="sector-container"><div style="margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: #94a3b8;">SECTOR EXPOSURE:</div>'
+        for sec, val in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
+            pct = (val / total_market_val) * 100
+            val_masked = mask_value(f"{val:,.2f} {currency}", is_censored)
+            pills_html += f'<span class="sector-pill">{sec} &nbsp;|&nbsp; {pct:.1f}% ({val_masked})</span>'
+        pills_html += '</div>'
+        st.markdown(pills_html, unsafe_allow_html=True)
+    else:
+        st.caption("Industry allocation will compute automatically when stocks are held.")
 
-            col_target = h_cols[idx_counter % 2]
-            col_target.markdown(f"""
-                <div class="stock-card">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 1.25rem; font-weight: 700; color: #60a5fa;">{t}</span>
-                    <span class="{badge}">{mask_value(pnl_str, is_censored)}</span>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
-                    <div><span style="color: #64748b;">Live Price:</span> <span style="font-weight: 600;">{curr_p:,.2f}</span></div>
-                    <div><span style="color: #64748b;">Position:</span> <span style="font-weight: 600;">{mask_value(qty_label, is_censored)}</span></div>
-                    <div><span style="color: #64748b;">Avg Cost:</span> <span style="font-weight: 600;">{mask_value(cost_str, is_censored)}</span></div>
-                    <div><span style="color: #64748b;">Market Value:</span> <span style="font-weight: 600;">{mask_value(val_str, is_censored)}</span></div>
-                  </div>
-                </div>
-            """, unsafe_allow_html=True)
-            idx_counter += 1
+    # 10. Categorized Portfolio Holdings Section
+    st.markdown("#### 💼 Portfolio Holdings (Grouped by Industry)")
+    if holdings:
+        # Group tickers by sector
+        grouped_by_sector = {}
+        for t, h in holdings.items():
+            sec = holding_sectors.get(t, "Diversified / Other")
+            if sec not in grouped_by_sector:
+                grouped_by_sector[sec] = []
+            grouped_by_sector[sec].append((t, h))
+
+        # Render each sector group
+        for sec, items in grouped_by_sector.items():
+            sec_total_val = sum(h["shares"] * live_prices[t] for t, h in items)
+            sec_weight = (sec_total_val / total_market_val * 100) if total_market_val > 0 else 0
+            sec_val_display = mask_value(f"{sec_total_val:,.2f} {currency}", is_censored)
+
+            st.markdown(f"##### 🏷️ {sec} &nbsp;<span style='font-size:0.8rem; color:#94a3b8;'>({sec_weight:.1f}% · {sec_val_display})</span>", unsafe_allow_html=True)
+            
+            h_cols = st.columns(2)
+            for idx_c, (t, h) in enumerate(items):
+                curr_p = live_prices[t]
+                val = h["shares"] * curr_p
+                pnl_val = val - h["total_cost"]
+                pnl_pct = (pnl_val / h["total_cost"] * 100) if h["total_cost"] > 0 else 0
+
+                qty_label = f"{int(h['shares']/100)} Lots" if market == "IDX" else f"{h['shares']:,.2f} Shares"
+                cost_str = f"{h['avg_cost']:,.2f}"
+                val_str = f"{val:,.2f} {currency}"
+                pnl_str = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
+                badge = "badge-green" if pnl_val >= 0 else "badge-red"
+
+                col_target = h_cols[idx_c % 2]
+                col_target.markdown(f"""
+                    <div class="stock-card">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                          <span style="font-size: 1.2rem; font-weight: 700; color: #60a5fa;">{t}</span>
+                          <span style="font-size: 0.72rem; color: #94a3b8; margin-left: 6px;">{sec}</span>
+                        </div>
+                        <span class="{badge}">{mask_value(pnl_str, is_censored)}</span>
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                        <div><span style="color: #64748b;">Live Price:</span> <span style="font-weight: 600;">{curr_p:,.2f}</span></div>
+                        <div><span style="color: #64748b;">Position:</span> <span style="font-weight: 600;">{mask_value(qty_label, is_censored)}</span></div>
+                        <div><span style="color: #64748b;">Avg Cost:</span> <span style="font-weight: 600;">{mask_value(cost_str, is_censored)}</span></div>
+                        <div><span style="color: #64748b;">Market Value:</span> <span style="font-weight: 600;">{mask_value(val_str, is_censored)}</span></div>
+                      </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
     else:
         st.info("No active positions in this market.")
 
