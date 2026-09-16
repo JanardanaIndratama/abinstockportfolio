@@ -330,8 +330,10 @@ def render_market_dashboard(market, currency, buy_universe):
                 has_sell = True
                 action = "Take Profit Target Reached (+10%)" if pct_change >= 10.0 else "Stop Loss Level Hit (-4.5%)"
                 with st.expander(f"🔴 SELL: {t} - {action}"):
-                    st.write(f"Current Return: {mask_value(f'{pct_change:+.2f}%', is_censored)}")
-                    st.write(f"Avg Cost: {mask_value(f'{h[\"avg_cost\"]:,.2f}', is_censored)} | Current Price: {curr_p:,.2f}")
+                    formatted_return = f"{pct_change:+.2f}%"
+                    formatted_cost = f"{h['avg_cost']:,.2f}"
+                    st.write(f"Current Return: {mask_value(formatted_return, is_censored)}")
+                    st.write(f"Avg Cost: {mask_value(formatted_cost, is_censored)} | Current Price: {curr_p:,.2f}")
                     st.write("Suggested action: Lock in profits or curtail downside to preserve capital.")
                     tv_sym = f"IDX:{t}" if market == "IDX" else t
                     render_tradingview(tv_sym)
