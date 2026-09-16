@@ -5,13 +5,13 @@ from supabase import create_client
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
-# Page configuration for mobile & desktop
+# Page configuration
 st.set_page_config(page_title="Stock Portfolio & Screener", layout="wide", initial_sidebar_state="collapsed")
 
 # Polling every 15 seconds
 st_autorefresh(interval=15000, key="datarefresh")
 
-# Supabase connection from secrets
+# Supabase connection
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
@@ -120,15 +120,14 @@ cost_method = st.radio("Cost Basis Method:", ["AVG", "FIFO"], horizontal=True)
 tab_idx, tab_us = st.tabs(["🇮🇩 IDX Market", "🇺🇸 US Stocks"])
 
 def render_market_dashboard(market, currency, buy_universe):
-    # Fetch Transactions directly (no cash balance queries)
-    tx_res = supabase.table("stock_transactions").select("*").eq("market", market).execute()
+    # Fetch all transactions ordered newest first
+    tx_res = supabase.table("stock_transactions").select("*").eq("market", market).order("transaction_date", desc=True).execute()
     transactions = tx_res.data or []
     
     holdings = compute_holdings(transactions, method=cost_method)
     
     st.subheader("💼 My Portfolio")
     
-    # Live Quotes for Holdings
     live_prices = {}
     total_market_val = 0.0
     total_cost_basis = 0.0
@@ -167,7 +166,6 @@ def render_market_dashboard(market, currency, buy_universe):
                 "P&L": f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
             })
             
-        # Summary Cards (Portfolio Value, Total Cost, Total P&L)
         net_pnl = total_market_val - total_cost_basis
         net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
         
@@ -183,10 +181,10 @@ def render_market_dashboard(market, currency, buy_universe):
         c2.metric(f"Total Cost Basis ({currency})", "0.00")
         st.info("No stocks currently held in this portfolio.")
 
-    # Buy / Sell Form (Without cash limits)
-    with st.expander("➕ Log Stock Transaction (BUY / SELL)"):
+    # Log New Stock Transaction
+    with st.expander("➕ Log New Transaction (BUY / SELL)"):
         f_type = st.selectbox("Type", ["BUY", "SELL"], key=f"f_type_{market}")
-        f_ticker = st.text_input("Ticker Symbol (e.g. BBCA, AAPL)", key=f"f_tick_{market}").upper().strip()
+        f_ticker = st.text_input("Ticker Symbol (e.g. BMRI, AAPL)", key=f"f_tick_{market}").upper().strip()
         f_qty = st.number_input("Lots (1 Lot = 100 Shares)" if market == "IDX" else "Shares", min_value=1.0, step=1.0, key=f"f_qty_{market}")
         f_price = st.number_input(f"Price per Share ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{market}")
         
@@ -210,6 +208,56 @@ def render_market_dashboard(market, currency, buy_universe):
                     "fee": fee
                 }).execute()
                 st.success(f"Successfully recorded {f_type} order for {f_ticker}.")
+                st.rerun()
+
+    # Edit or Delete Misinput
+    with st.expander("🛠️ Edit / Delete Misinputs (Transaction History)"):
+        if not transactions:
+            st.caption("No transaction history available to edit.")
+        else:
+            # Dropdown label formatter
+            def format_tx_label(tx):
+                date_str = tx["transaction_date"][:16].replace("T", " ")
+                qty_display = f"{int(tx['shares']/100)} Lots" if market == "IDX" else f"{tx['shares']} Shares"
+                return f"{date_str} | {tx['type']} {qty_display} {tx['ticker']} @ {tx['price_per_share']:,.2f}"
+
+            tx_map = {format_tx_label(tx): tx for tx in transactions}
+            selected_label = st.selectbox("Select the transaction to modify or delete:", list(tx_map.keys()), key=f"sel_{market}")
+            selected_tx = tx_map[selected_label]
+
+            st.write("---")
+            st.markdown(f"**Editing Transaction:** `{selected_tx['id']}`")
+            
+            e_col1, e_col2 = st.columns(2)
+            curr_qty = selected_tx["shares"] / 100 if market == "IDX" else selected_tx["shares"]
+            
+            with e_col1:
+                e_type = st.selectbox("Type", ["BUY", "SELL"], index=0 if selected_tx["type"] == "BUY" else 1, key=f"e_type_{market}")
+                e_ticker = st.text_input("Ticker", value=selected_tx["ticker"], key=f"e_tick_{market}").upper().strip()
+            with e_col2:
+                e_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, value=float(curr_qty), step=1.0, key=f"e_qty_{market}")
+                e_price = st.number_input(f"Price per Share ({currency})", min_value=0.01, value=float(selected_tx["price_per_share"]), step=10.0 if market == "IDX" else 0.5, key=f"e_pr_{market}")
+
+            new_shares = e_qty * 100 if market == "IDX" else e_qty
+            new_gross = new_shares * e_price
+            new_fee = calc_fee(market, e_type, new_gross)
+            st.caption(f"Recalculated Fee: {new_fee:,.2f} {currency} | Net Total: {(new_gross + new_fee if e_type == 'BUY' else new_gross - new_fee):,.2f} {currency}")
+
+            btn_col1, btn_col2 = st.columns(2)
+            if btn_col1.button("💾 Save Changes", key=f"btn_save_{market}"):
+                supabase.table("stock_transactions").update({
+                    "ticker": e_ticker,
+                    "type": e_type,
+                    "shares": new_shares,
+                    "price_per_share": e_price,
+                    "fee": new_fee
+                }).eq("id", selected_tx["id"]).execute()
+                st.success("Transaction updated successfully.")
+                st.rerun()
+
+            if btn_col2.button("🗑️ Delete This Transaction", key=f"btn_del_{market}", type="secondary"):
+                supabase.table("stock_transactions").delete().eq("id", selected_tx["id"]).execute()
+                st.warning("Transaction deleted.")
                 st.rerun()
 
     # News for Owned Stocks
