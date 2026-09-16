@@ -24,7 +24,6 @@ supabase = init_supabase()
 def fetch_realtime_price(symbol):
     try:
         t = yf.Ticker(symbol)
-        # 1. Check fast_info (direct real-time market quote)
         fast = getattr(t, "fast_info", None)
         if fast is not None:
             try:
@@ -40,12 +39,10 @@ def fetch_realtime_price(symbol):
             except Exception:
                 pass
         
-        # 2. Fallback to the latest 1-minute intraday candle
         intraday = t.history(period="1d", interval="1m")
         if not intraday.empty:
             return float(intraday["Close"].iloc[-1])
             
-        # 3. Fallback to latest available daily close (outside market hours)
         daily = t.history(period="5d")
         if not daily.empty:
             return float(daily["Close"].iloc[-1])
@@ -135,10 +132,18 @@ def render_tradingview(symbol):
     """
     components.html(tv_code, height=360)
 
+# Helper function to censor private financial figures
+def mask_value(val_str, is_censored):
+    return "••••••••" if is_censored else val_str
+
 # Main UI layout
 st.title("📈 Stock Portfolio & Swing Screener")
 
-cost_method = st.radio("Cost Basis Method:", ["AVG", "FIFO"], horizontal=True)
+ctrl_col1, ctrl_col2 = st.columns([2, 1])
+with ctrl_col1:
+    cost_method = st.radio("Cost Basis Method:", ["AVG", "FIFO"], horizontal=True)
+with ctrl_col2:
+    is_censored = st.toggle("🔒 Privacy Mode (Censor Values)", value=False)
 
 tab_idx, tab_us = st.tabs(["🇮🇩 IDX Market", "🇺🇸 US Stocks"])
 
@@ -170,29 +175,43 @@ def render_market_dashboard(market, currency, buy_universe):
             pnl_val = val - h["total_cost"]
             pnl_pct = (pnl_val / h["total_cost"] * 100) if h["total_cost"] > 0 else 0
             
-            qty_label = f"{int(h['shares']/100)} Lots" if market == "IDX" else f"{h['shares']} Shares"
+            qty_raw = f"{int(h['shares']/100)} Lots" if market == "IDX" else f"{h['shares']} Shares"
+            cost_raw = f"{h['avg_cost']:,.2f}"
+            val_raw = f"{val:,.2f}"
+            pnl_raw = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
+            
             table_rows.append({
                 "Ticker": t,
-                "Quantity": qty_label,
-                "Cost/Share": f"{h['avg_cost']:,.2f}",
+                "Quantity": mask_value(qty_raw, is_censored),
+                "Cost/Share": mask_value(cost_raw, is_censored),
                 "Live Price": f"{curr_p:,.2f}",
-                "Market Value": f"{val:,.2f}",
-                "P&L": f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
+                "Market Value": mask_value(val_raw, is_censored),
+                "P&L": mask_value(pnl_raw, is_censored)
             })
             
         net_pnl = total_market_val - total_cost_basis
         net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
         
         c1, c2, c3 = st.columns(3)
-        c1.metric(f"Portfolio Value ({currency})", f"{total_market_val:,.2f}")
-        c2.metric(f"Total Cost Basis ({currency})", f"{total_cost_basis:,.2f}")
-        c3.metric(f"Unrealized P&L ({currency})", f"{net_pnl:+,.2f}", f"{net_pnl_pct:+.2f}%")
+        c1.metric(
+            f"Portfolio Value ({currency})",
+            mask_value(f"{total_market_val:,.2f}", is_censored)
+        )
+        c2.metric(
+            f"Total Cost Basis ({currency})",
+            mask_value(f"{total_cost_basis:,.2f}", is_censored)
+        )
+        c3.metric(
+            f"Unrealized P&L ({currency})",
+            mask_value(f"{net_pnl:+,.2f}", is_censored),
+            mask_value(f"{net_pnl_pct:+.2f}%", is_censored)
+        )
         
         st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
     else:
         c1, c2 = st.columns(2)
-        c1.metric(f"Portfolio Value ({currency})", "0.00")
-        c2.metric(f"Total Cost Basis ({currency})", "0.00")
+        c1.metric(f"Portfolio Value ({currency})", mask_value("0.00", is_censored))
+        c2.metric(f"Total Cost Basis ({currency})", mask_value("0.00", is_censored))
         st.info("No stocks currently held in this portfolio.")
 
     # Log New Stock Transaction
@@ -311,8 +330,8 @@ def render_market_dashboard(market, currency, buy_universe):
                 has_sell = True
                 action = "Take Profit Target Reached (+10%)" if pct_change >= 10.0 else "Stop Loss Level Hit (-4.5%)"
                 with st.expander(f"🔴 SELL: {t} - {action}"):
-                    st.write(f"Current Return: {pct_change:+.2f}%")
-                    st.write(f"Avg Cost: {h['avg_cost']:,.2f} | Current Price: {curr_p:,.2f}")
+                    st.write(f"Current Return: {mask_value(f'{pct_change:+.2f}%', is_censored)}")
+                    st.write(f"Avg Cost: {mask_value(f'{h[\"avg_cost\"]:,.2f}', is_censored)} | Current Price: {curr_p:,.2f}")
                     st.write("Suggested action: Lock in profits or curtail downside to preserve capital.")
                     tv_sym = f"IDX:{t}" if market == "IDX" else t
                     render_tradingview(tv_sym)
