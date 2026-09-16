@@ -5,13 +5,136 @@ from supabase import create_client
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
-# Page configuration
-st.set_page_config(page_title="Stock Portfolio & Screener", layout="wide", initial_sidebar_state="collapsed")
+# 1. Page Configuration
+st.set_page_config(
+    page_title="FinTech Portfolio & Swing Radar",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-# Polling every 15 seconds
+# 2. Polling every 15 seconds
 st_autorefresh(interval=15000, key="datarefresh")
 
-# Supabase connection
+# 3. FinTech Glassmorphism Design System (CSS Injection)
+st.markdown("""
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  
+  html, body, [class*="css"] {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  /* Global Dark Glass Background */
+  .stApp {
+    background: radial-gradient(circle at 10% 20%, #0c101c 0%, #07090e 90%);
+    color: #f1f5f9;
+  }
+
+  /* Frosted Glass KPI Cards */
+  .kpi-card {
+    background: rgba(22, 28, 45, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(14px);
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    margin-bottom: 1rem;
+  }
+
+  .kpi-title {
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .kpi-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-top: 0.35rem;
+  }
+
+  .kpi-sub {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+
+  /* Stock Holding Cards */
+  .stock-card {
+    background: rgba(20, 26, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    padding: 1.15rem;
+    margin-bottom: 0.85rem;
+    backdrop-filter: blur(10px);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .stock-card:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+  }
+
+  /* Badges */
+  .badge-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.78rem;
+  }
+
+  .badge-red {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.78rem;
+  }
+
+  /* Form & Expander Polish */
+  div[data-testid="stExpander"] {
+    background: rgba(18, 24, 38, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 14px !important;
+    backdrop-filter: blur(8px);
+    margin-bottom: 1rem;
+  }
+
+  /* Buttons */
+  div.stButton > button {
+    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1.25rem !important;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3) !important;
+  }
+
+  /* Streamlit Tabs */
+  button[data-baseweb="tab"] {
+    background: transparent !important;
+    border-radius: 8px !important;
+    color: #94a3b8 !important;
+    font-weight: 600 !important;
+  }
+
+  button[aria-selected="true"] {
+    color: #60a5fa !important;
+    background: rgba(59, 130, 246, 0.12) !important;
+  }
+</style>
+""", unsafe_allow_html=True)
+
+# 4. Database Setup
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
@@ -20,7 +143,7 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# Fetch live real-time price from Yahoo Finance
+# 5. Real-Time Price Fetcher
 def fetch_realtime_price(symbol):
     try:
         t = yf.Ticker(symbol)
@@ -50,7 +173,7 @@ def fetch_realtime_price(symbol):
         pass
     return None
 
-# Accounting calculations (AVG vs FIFO without fees)
+# 6. Accounting Calculations
 def compute_holdings(transactions, method="AVG"):
     if not transactions:
         return {}
@@ -132,104 +255,123 @@ def render_tradingview(symbol):
     """
     components.html(tv_code, height=360)
 
-# Helper function to censor private financial figures
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# Main UI layout
-st.title("📈 Stock Portfolio & Swing Screener")
+# 7. Header Controls
+st.markdown("### ⚡ FinTech Swing Radar")
 
-ctrl_col1, ctrl_col2 = st.columns([2, 1])
-with ctrl_col1:
-    cost_method = st.radio("Cost Basis Method:", ["AVG", "FIFO"], horizontal=True)
-with ctrl_col2:
-    is_censored = st.toggle("🔒 Privacy Mode (Censor Values)", value=False)
+ctrl_c1, ctrl_c2 = st.columns([3, 1])
+with ctrl_c1:
+    cost_method = st.radio("Accounting Method", ["AVG", "FIFO"], horizontal=True)
+with ctrl_c2:
+    is_censored = st.toggle("🔒 Privacy Mode", value=False)
 
-tab_idx, tab_us = st.tabs(["🇮🇩 IDX Market", "🇺🇸 US Stocks"])
+tab_idx, tab_us = st.tabs(["🇮🇩 Indonesia (IDX)", "🇺🇸 United States (US)"])
 
 def render_market_dashboard(market, currency, buy_universe):
     tx_res = supabase.table("stock_transactions").select("*").eq("market", market).order("transaction_date", desc=True).execute()
     transactions = tx_res.data or []
-    
     holdings = compute_holdings(transactions, method=cost_method)
-    
-    st.subheader("💼 My Portfolio")
-    
+
     live_prices = {}
     total_market_val = 0.0
     total_cost_basis = 0.0
-    
+
     if holdings:
         tickers = list(holdings.keys())
         for t in tickers:
             yf_sym = f"{t}.JK" if market == "IDX" else t
-            live_price = fetch_realtime_price(yf_sym)
-            live_prices[t] = live_price if live_price is not None else holdings[t]["avg_cost"]
-                
-        table_rows = []
+            price = fetch_realtime_price(yf_sym)
+            live_prices[t] = price if price is not None else holdings[t]["avg_cost"]
+            val = holdings[t]["shares"] * live_prices[t]
+            total_market_val += val
+            total_cost_basis += holdings[t]["total_cost"]
+
+    net_pnl = total_market_val - total_cost_basis
+    net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
+    pnl_class = "badge-green" if net_pnl >= 0 else "badge-red"
+
+    # KPI Header Cards
+    disp_val = mask_value(f"{total_market_val:,.2f} {currency}", is_censored)
+    disp_cost = mask_value(f"{total_cost_basis:,.2f} {currency}", is_censored)
+    disp_pnl = mask_value(f"{net_pnl:+,.2f} ({net_pnl_pct:+.2f}%)", is_censored)
+
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(f"""
+        <div class="kpi-card">
+          <div class="kpi-title">Portfolio Value</div>
+          <div class="kpi-value">{disp_val}</div>
+        </div>
+    """, unsafe_allow_html=True)
+    c2.markdown(f"""
+        <div class="kpi-card">
+          <div class="kpi-title">Total Cost Basis</div>
+          <div class="kpi-value">{disp_cost}</div>
+        </div>
+    """, unsafe_allow_html=True)
+    c3.markdown(f"""
+        <div class="kpi-card">
+          <div class="kpi-title">Net Unrealized P&L</div>
+          <div class="kpi-value" style="font-size: 1.35rem; margin-top: 0.55rem;">
+            <span class="{pnl_class}">{disp_pnl}</span>
+          </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Portfolio Holdings Section
+    st.markdown("#### 💼 Portfolio Holdings")
+    if holdings:
+        # 2-Column Responsive Card Grid
+        h_cols = st.columns(2)
+        idx_counter = 0
         for t, h in holdings.items():
             curr_p = live_prices[t]
             val = h["shares"] * curr_p
-            total_market_val += val
-            total_cost_basis += h["total_cost"]
             pnl_val = val - h["total_cost"]
             pnl_pct = (pnl_val / h["total_cost"] * 100) if h["total_cost"] > 0 else 0
-            
-            qty_raw = f"{int(h['shares']/100)} Lots" if market == "IDX" else f"{h['shares']} Shares"
-            cost_raw = f"{h['avg_cost']:,.2f}"
-            val_raw = f"{val:,.2f}"
-            pnl_raw = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
-            
-            table_rows.append({
-                "Ticker": t,
-                "Quantity": mask_value(qty_raw, is_censored),
-                "Cost/Share": mask_value(cost_raw, is_censored),
-                "Live Price": f"{curr_p:,.2f}",
-                "Market Value": mask_value(val_raw, is_censored),
-                "P&L": mask_value(pnl_raw, is_censored)
-            })
-            
-        net_pnl = total_market_val - total_cost_basis
-        net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric(
-            f"Portfolio Value ({currency})",
-            mask_value(f"{total_market_val:,.2f}", is_censored)
-        )
-        c2.metric(
-            f"Total Cost Basis ({currency})",
-            mask_value(f"{total_cost_basis:,.2f}", is_censored)
-        )
-        c3.metric(
-            f"Unrealized P&L ({currency})",
-            mask_value(f"{net_pnl:+,.2f}", is_censored),
-            mask_value(f"{net_pnl_pct:+.2f}%", is_censored)
-        )
-        
-        st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
-    else:
-        c1, c2 = st.columns(2)
-        c1.metric(f"Portfolio Value ({currency})", mask_value("0.00", is_censored))
-        c2.metric(f"Total Cost Basis ({currency})", mask_value("0.00", is_censored))
-        st.info("No stocks currently held in this portfolio.")
 
-    # Log New Stock Transaction
+            qty_label = f"{int(h['shares']/100)} Lots" if market == "IDX" else f"{h['shares']:,.2f} Shares"
+            cost_str = f"{h['avg_cost']:,.2f}"
+            val_str = f"{val:,.2f} {currency}"
+            pnl_str = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
+            badge = "badge-green" if pnl_val >= 0 else "badge-red"
+
+            col_target = h_cols[idx_counter % 2]
+            col_target.markdown(f"""
+                <div class="stock-card">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 1.25rem; font-weight: 700; color: #60a5fa;">{t}</span>
+                    <span class="{badge}">{mask_value(pnl_str, is_censored)}</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                    <div><span style="color: #64748b;">Live Price:</span> <span style="font-weight: 600;">{curr_p:,.2f}</span></div>
+                    <div><span style="color: #64748b;">Position:</span> <span style="font-weight: 600;">{mask_value(qty_label, is_censored)}</span></div>
+                    <div><span style="color: #64748b;">Avg Cost:</span> <span style="font-weight: 600;">{mask_value(cost_str, is_censored)}</span></div>
+                    <div><span style="color: #64748b;">Market Value:</span> <span style="font-weight: 600;">{mask_value(val_str, is_censored)}</span></div>
+                  </div>
+                </div>
+            """, unsafe_allow_html=True)
+            idx_counter += 1
+    else:
+        st.info("No active positions in this market.")
+
+    # Transaction Form
     with st.expander("➕ Log New Transaction (BUY / SELL)"):
-        f_type = st.selectbox("Type", ["BUY", "SELL"], key=f"f_type_{market}")
-        f_ticker = st.text_input("Ticker Symbol (e.g. BMRI, AAPL)", key=f"f_tick_{market}").upper().strip()
-        f_qty = st.number_input("Lots (1 Lot = 100 Shares)" if market == "IDX" else "Shares", min_value=1.0, step=1.0, key=f"f_qty_{market}")
-        f_price = st.number_input(f"Price per Share ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{market}")
-        
+        f_type = st.selectbox("Order Type", ["BUY", "SELL"], key=f"f_type_{market}")
+        f_ticker = st.text_input("Ticker Symbol", placeholder="e.g. BMRI, AAPL", key=f"f_tick_{market}").upper().strip()
+        f_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, step=1.0, key=f"f_qty_{market}")
+        f_price = st.number_input(f"Execution Price ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{market}")
+
         shares = f_qty * 100 if market == "IDX" else f_qty
-        total_trade_value = shares * f_price
-        st.caption(f"Total Value: {total_trade_value:,.2f} {currency}")
-        
-        if st.button("Execute Trade", key=f"f_btn_{market}"):
+        trade_total = shares * f_price
+        st.caption(f"Gross Transaction Value: {trade_total:,.2f} {currency}")
+
+        if st.button("Submit Order", key=f"f_btn_{market}"):
             if not f_ticker:
-                st.error("Please provide a ticker symbol.")
+                st.error("Please specify a ticker symbol.")
             elif f_type == "SELL" and holdings.get(f_ticker, {}).get("shares", 0) < shares:
-                st.error("You cannot sell more shares than you hold.")
+                st.error("Cannot sell more shares than currently held.")
             else:
                 supabase.table("stock_transactions").insert({
                     "market": market,
@@ -239,88 +381,77 @@ def render_market_dashboard(market, currency, buy_universe):
                     "price_per_share": f_price,
                     "fee": 0
                 }).execute()
-                st.success(f"Successfully recorded {f_type} order for {f_ticker}.")
+                st.success(f"Recorded {f_type} order for {f_ticker}.")
                 st.rerun()
 
-    # Edit or Delete Misinput
-    with st.expander("🛠️ Edit / Delete Misinputs (Transaction History)"):
+    # Edit / Delete Misinputs
+    with st.expander("🛠️ Modify Past Transactions"):
         if not transactions:
-            st.caption("No transaction history available to edit.")
+            st.caption("No trade records found.")
         else:
             def format_tx_label(tx):
                 date_str = tx["transaction_date"][:16].replace("T", " ")
-                qty_display = f"{int(tx['shares']/100)} Lots" if market == "IDX" else f"{tx['shares']} Shares"
-                return f"{date_str} | {tx['type']} {qty_display} {tx['ticker']} @ {tx['price_per_share']:,.2f}"
+                qty_dsp = f"{int(tx['shares']/100)} Lots" if market == "IDX" else f"{tx['shares']} Shares"
+                return f"{date_str} | {tx['type']} {qty_dsp} {tx['ticker']} @ {tx['price_per_share']:,.2f}"
 
             tx_map = {format_tx_label(tx): tx for tx in transactions}
-            selected_label = st.selectbox("Select the transaction to modify or delete:", list(tx_map.keys()), key=f"sel_{market}")
+            selected_label = st.selectbox("Select Record", list(tx_map.keys()), key=f"sel_{market}")
             selected_tx = tx_map[selected_label]
 
-            st.write("---")
-            st.markdown(f"**Editing Transaction:** `{selected_tx['id']}`")
-            
-            e_col1, e_col2 = st.columns(2)
-            curr_qty = selected_tx["shares"] / 100 if market == "IDX" else selected_tx["shares"]
-            
-            with e_col1:
+            curr_units = selected_tx["shares"] / 100 if market == "IDX" else selected_tx["shares"]
+            e1, e2 = st.columns(2)
+            with e1:
                 e_type = st.selectbox("Type", ["BUY", "SELL"], index=0 if selected_tx["type"] == "BUY" else 1, key=f"e_type_{market}")
                 e_ticker = st.text_input("Ticker", value=selected_tx["ticker"], key=f"e_tick_{market}").upper().strip()
-            with e_col2:
-                e_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, value=float(curr_qty), step=1.0, key=f"e_qty_{market}")
-                e_price = st.number_input(f"Price per Share ({currency})", min_value=0.01, value=float(selected_tx["price_per_share"]), step=10.0 if market == "IDX" else 0.5, key=f"e_pr_{market}")
+            with e2:
+                e_qty = st.number_input("Units", min_value=1.0, value=float(curr_units), step=1.0, key=f"e_qty_{market}")
+                e_price = st.number_input("Price", min_value=0.01, value=float(selected_tx["price_per_share"]), key=f"e_pr_{market}")
 
             new_shares = e_qty * 100 if market == "IDX" else e_qty
-            edit_total_value = new_shares * e_price
-            st.caption(f"Total Value: {edit_total_value:,.2f} {currency}")
-
-            btn_col1, btn_col2 = st.columns(2)
-            if btn_col1.button("💾 Save Changes", key=f"btn_save_{market}"):
+            b_save, b_del = st.columns(2)
+            if b_save.button("💾 Save Update", key=f"btn_s_{market}"):
                 supabase.table("stock_transactions").update({
                     "ticker": e_ticker,
                     "type": e_type,
                     "shares": new_shares,
-                    "price_per_share": e_price,
-                    "fee": 0
+                    "price_per_share": e_price
                 }).eq("id", selected_tx["id"]).execute()
-                st.success("Transaction updated successfully.")
+                st.success("Updated.")
                 st.rerun()
 
-            if btn_col2.button("🗑️ Delete This Transaction", key=f"btn_del_{market}", type="secondary"):
+            if b_del.button("🗑️ Delete Record", key=f"btn_d_{market}"):
                 supabase.table("stock_transactions").delete().eq("id", selected_tx["id"]).execute()
-                st.warning("Transaction deleted.")
+                st.warning("Deleted.")
                 st.rerun()
 
-    # News for Owned Stocks
-    st.subheader("📰 News for Owned Stocks")
+    # News Section
+    st.markdown("#### 📰 Holding Catalysts & News")
     if holdings:
         for t in list(holdings.keys())[:4]:
             yf_sym = f"{t}.JK" if market == "IDX" else t
             try:
-                news_items = yf.Ticker(yf_sym).news
-                if news_items:
-                    st.markdown(f"**{t} Updates**")
-                    for n in news_items[:2]:
-                        title = n.get("title", "")
-                        link = n.get("link", "#")
-                        st.markdown(f"- [{title}]({link})")
+                news = yf.Ticker(yf_sym).news
+                if news:
+                    st.markdown(f"**{t}**")
+                    for item in news[:2]:
+                        st.markdown(f"- [{item.get('title', '')}]({item.get('link', '#')})")
             except Exception:
                 pass
     else:
-        st.caption("Own stocks in this tab to see tailored ticker news.")
+        st.caption("Active positions will populate live news feeds.")
 
-    # Recommendations
-    st.subheader("🎯 Swing Trading Recommendations (1-2 Weeks)")
-    
-    st.markdown("##### 🟢 BUY Setups (Fundamental + Technical Screener)")
+    # Recommendations Section
+    st.markdown("#### 🎯 Swing Setups (1-2 Week Horizon)")
+    st.markdown("##### 🟢 Recommended Buys")
     for pick in buy_universe:
-        with st.expander(f"🟢 BUY: {pick['ticker']} - {pick['setup']}"):
-            st.markdown(f"**Fundamental Quality:** {pick['fundamentals']}")
-            st.markdown(f"**Technical Trigger:** {pick['technicals']}")
-            st.markdown(f"**Entry Zone:** {pick['entry']} | **Target:** {pick['target']} | **Stop Loss:** {pick['stop']}")
+        with st.expander(f"🟢 {pick['ticker']} — {pick['setup']}"):
+            st.markdown(f"**Fundamentals:** {pick['fundamentals']}")
+            st.markdown(f"**Technical Setup:** {pick['technicals']}")
+            st.markdown(f"**Entry:** {pick['entry']} | **Target:** {pick['target']} | **Stop Loss:** {pick['stop']}")
             tv_sym = f"IDX:{pick['ticker']}" if market == "IDX" else pick['ticker']
             render_tradingview(tv_sym)
 
-    st.markdown("##### 🔴 SELL Alerts (Stocks You Own)")
+    st.markdown("##### 🔴 Exit & Stop Alerts")
     has_sell = False
     if holdings:
         for t, h in holdings.items():
@@ -328,19 +459,18 @@ def render_market_dashboard(market, currency, buy_universe):
             pct_change = ((curr_p - h["avg_cost"]) / h["avg_cost"]) * 100
             if pct_change <= -4.5 or pct_change >= 10.0:
                 has_sell = True
-                action = "Take Profit Target Reached (+10%)" if pct_change >= 10.0 else "Stop Loss Level Hit (-4.5%)"
-                with st.expander(f"🔴 SELL: {t} - {action}"):
-                    formatted_return = f"{pct_change:+.2f}%"
-                    formatted_cost = f"{h['avg_cost']:,.2f}"
-                    st.write(f"Current Return: {mask_value(formatted_return, is_censored)}")
-                    st.write(f"Avg Cost: {mask_value(formatted_cost, is_censored)} | Current Price: {curr_p:,.2f}")
-                    st.write("Suggested action: Lock in profits or curtail downside to preserve capital.")
+                status = "Target Reached (+10%)" if pct_change >= 10.0 else "Stop Level (-4.5%)"
+                with st.expander(f"🔴 SELL: {t} — {status}"):
+                    ret_str = f"{pct_change:+.2f}%"
+                    cost_str = f"{h['avg_cost']:,.2f}"
+                    st.write(f"Unrealized P&L: {mask_value(ret_str, is_censored)}")
+                    st.write(f"Avg Cost: {mask_value(cost_str, is_censored)} | Current Price: {curr_p:,.2f}")
                     tv_sym = f"IDX:{t}" if market == "IDX" else t
                     render_tradingview(tv_sym)
     if not has_sell:
-        st.caption("No sell alerts triggered for your current holdings.")
+        st.caption("No sell or take-profit triggers tripped for current holdings.")
 
-# Screened universes
+# Screener Picks
 idx_buys = [
     {"ticker": "BMRI", "setup": "Pullback to 20-Day EMA", "fundamentals": "ROE 18.2%, PBV 2.1x, Net Profit Growth +14% YoY", "technicals": "Holding 20 EMA support at Rp 6,850; RSI 48 curling upwards.", "entry": "Rp 6,800 - 6,900", "target": "Rp 7,450 (+8.5%)", "stop": "Rp 6,600 (-3.8%)"},
     {"ticker": "TLKM", "setup": "Value Rebound from Support", "fundamentals": "ROE 17.5%, PBV 2.4x, Dividend Yield 5.1%", "technicals": "Double-bottom setup on daily chart; MACD bullish crossover.", "entry": "Rp 2,850 - 2,900", "target": "Rp 3,180 (+10.2%)", "stop": "Rp 2,750 (-4.1%)"}
