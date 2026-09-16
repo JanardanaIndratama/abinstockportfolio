@@ -20,15 +20,7 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# Ajaib fee formulas
-def calc_fee(market, trade_type, gross_amount):
-    if market == "IDX":
-        rate = 0.001513 if trade_type == "BUY" else 0.002513
-        return round(gross_amount * rate)
-    else:
-        return round(gross_amount * 0.003, 2)
-
-# Accounting calculations (AVG vs FIFO)
+# Accounting calculations (AVG vs FIFO without fees)
 def compute_holdings(transactions, method="AVG"):
     if not transactions:
         return {}
@@ -43,9 +35,8 @@ def compute_holdings(transactions, method="AVG"):
             for _, row in group.iterrows():
                 shares = float(row["shares"])
                 price = float(row["price_per_share"])
-                fee = float(row["fee"])
                 if row["type"] == "BUY":
-                    total_cost += (shares * price) + fee
+                    total_cost += (shares * price)
                     total_shares += shares
                 elif row["type"] == "SELL":
                     avg_cost = total_cost / total_shares if total_shares > 0 else 0
@@ -65,9 +56,8 @@ def compute_holdings(transactions, method="AVG"):
             for _, row in group.iterrows():
                 shares = float(row["shares"])
                 price = float(row["price_per_share"])
-                fee = float(row["fee"])
                 if row["type"] == "BUY":
-                    buy_lots.append({"shares": shares, "unit_cost": price + (fee / shares if shares > 0 else 0)})
+                    buy_lots.append({"shares": shares, "unit_cost": price})
                 elif row["type"] == "SELL":
                     rem_sell = shares
                     while rem_sell > 0.0001 and buy_lots:
@@ -189,9 +179,8 @@ def render_market_dashboard(market, currency, buy_universe):
         f_price = st.number_input(f"Price per Share ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{market}")
         
         shares = f_qty * 100 if market == "IDX" else f_qty
-        gross = shares * f_price
-        fee = calc_fee(market, f_type, gross)
-        st.caption(f"Ajaib Fee: {fee:,.2f} {currency} | Net Total: {(gross + fee if f_type == 'BUY' else gross - fee):,.2f} {currency}")
+        total_trade_value = shares * f_price
+        st.caption(f"Total Value: {total_trade_value:,.2f} {currency}")
         
         if st.button("Execute Trade", key=f"f_btn_{market}"):
             if not f_ticker:
@@ -205,7 +194,7 @@ def render_market_dashboard(market, currency, buy_universe):
                     "type": f_type,
                     "shares": shares,
                     "price_per_share": f_price,
-                    "fee": fee
+                    "fee": 0
                 }).execute()
                 st.success(f"Successfully recorded {f_type} order for {f_ticker}.")
                 st.rerun()
@@ -215,7 +204,6 @@ def render_market_dashboard(market, currency, buy_universe):
         if not transactions:
             st.caption("No transaction history available to edit.")
         else:
-            # Dropdown label formatter
             def format_tx_label(tx):
                 date_str = tx["transaction_date"][:16].replace("T", " ")
                 qty_display = f"{int(tx['shares']/100)} Lots" if market == "IDX" else f"{tx['shares']} Shares"
@@ -239,9 +227,8 @@ def render_market_dashboard(market, currency, buy_universe):
                 e_price = st.number_input(f"Price per Share ({currency})", min_value=0.01, value=float(selected_tx["price_per_share"]), step=10.0 if market == "IDX" else 0.5, key=f"e_pr_{market}")
 
             new_shares = e_qty * 100 if market == "IDX" else e_qty
-            new_gross = new_shares * e_price
-            new_fee = calc_fee(market, e_type, new_gross)
-            st.caption(f"Recalculated Fee: {new_fee:,.2f} {currency} | Net Total: {(new_gross + new_fee if e_type == 'BUY' else new_gross - new_fee):,.2f} {currency}")
+            edit_total_value = new_shares * e_price
+            st.caption(f"Total Value: {edit_total_value:,.2f} {currency}")
 
             btn_col1, btn_col2 = st.columns(2)
             if btn_col1.button("💾 Save Changes", key=f"btn_save_{market}"):
@@ -250,7 +237,7 @@ def render_market_dashboard(market, currency, buy_universe):
                     "type": e_type,
                     "shares": new_shares,
                     "price_per_share": e_price,
-                    "fee": new_fee
+                    "fee": 0
                 }).eq("id", selected_tx["id"]).execute()
                 st.success("Transaction updated successfully.")
                 st.rerun()
