@@ -20,6 +20,39 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# Fetch live real-time price from Yahoo Finance
+def fetch_realtime_price(symbol):
+    try:
+        t = yf.Ticker(symbol)
+        # 1. Check fast_info (direct real-time market quote)
+        fast = getattr(t, "fast_info", None)
+        if fast is not None:
+            try:
+                p = fast.last_price
+                if p is not None and not pd.isna(p) and p > 0:
+                    return float(p)
+            except Exception:
+                pass
+            try:
+                p = fast["lastPrice"]
+                if p is not None and not pd.isna(p) and p > 0:
+                    return float(p)
+            except Exception:
+                pass
+        
+        # 2. Fallback to the latest 1-minute intraday candle
+        intraday = t.history(period="1d", interval="1m")
+        if not intraday.empty:
+            return float(intraday["Close"].iloc[-1])
+            
+        # 3. Fallback to latest available daily close (outside market hours)
+        daily = t.history(period="5d")
+        if not daily.empty:
+            return float(daily["Close"].iloc[-1])
+    except Exception:
+        pass
+    return None
+
 # Accounting calculations (AVG vs FIFO without fees)
 def compute_holdings(transactions, method="AVG"):
     if not transactions:
@@ -110,7 +143,6 @@ cost_method = st.radio("Cost Basis Method:", ["AVG", "FIFO"], horizontal=True)
 tab_idx, tab_us = st.tabs(["🇮🇩 IDX Market", "🇺🇸 US Stocks"])
 
 def render_market_dashboard(market, currency, buy_universe):
-    # Fetch all transactions ordered newest first
     tx_res = supabase.table("stock_transactions").select("*").eq("market", market).order("transaction_date", desc=True).execute()
     transactions = tx_res.data or []
     
@@ -124,22 +156,14 @@ def render_market_dashboard(market, currency, buy_universe):
     
     if holdings:
         tickers = list(holdings.keys())
-        yf_tickers = [f"{t}.JK" if market == "IDX" else t for t in tickers]
-        try:
-            data = yf.download(yf_tickers, period="5d", progress=False)["Close"]
-            for t, yft in zip(tickers, yf_tickers):
-                if len(tickers) == 1:
-                    price = float(data.iloc[-1])
-                else:
-                    price = float(data[yft].dropna().iloc[-1])
-                live_prices[t] = price
-        except Exception:
-            for t in tickers:
-                live_prices[t] = holdings[t]["avg_cost"]
+        for t in tickers:
+            yf_sym = f"{t}.JK" if market == "IDX" else t
+            live_price = fetch_realtime_price(yf_sym)
+            live_prices[t] = live_price if live_price is not None else holdings[t]["avg_cost"]
                 
         table_rows = []
         for t, h in holdings.items():
-            curr_p = live_prices.get(t, h["avg_cost"])
+            curr_p = live_prices[t]
             val = h["shares"] * curr_p
             total_market_val += val
             total_cost_basis += h["total_cost"]
