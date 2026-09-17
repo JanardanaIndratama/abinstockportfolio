@@ -52,10 +52,6 @@ st.markdown("""
     color: var(--md-sys-color-on-surface);
   }
 
-  /* ============================================================
-     HERO & WORKSPACE SELECTOR (STRICT MIDLINE CENTERING)
-     ============================================================ */
-
   .hero-header {
     text-align: center;
     margin-top: 1rem;
@@ -161,10 +157,6 @@ st.markdown("""
     font-weight: 600 !important;
   }
 
-  /* ============================================================
-     SCOPED CONTROLS: AVG/FIFO (LEFT) & TOGGLE/LOCK (RIGHT)
-     ============================================================ */
-
   div[data-testid="stColumn"] div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) {
     display: flex !important;
     justify-content: flex-start !important;
@@ -208,10 +200,6 @@ st.markdown("""
     justify-content: flex-end !important;
     width: 100% !important;
   }
-
-  /* ============================================================
-     MATERIAL YOU SURFACES & CARDS
-     ============================================================ */
 
   .m3-banner-centered {
     background-color: var(--md-sys-color-surface-container);
@@ -398,11 +386,11 @@ if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def run_ai_broker_team(market, holdings, live_prices):
-    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md."""
+    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md using Gemini 3.8 Flash."""
     if not holdings:
         return "No active holdings to analyze. Please log a transaction first."
     
-    # 1. Gather recent news headlines (limit to top 3 to prevent timeouts)
+    # 1. Gather recent news headlines (limit to top 3 to maintain speed)
     news_brief = {}
     for ticker in list(holdings.keys())[:3]:
         sym = f"{ticker}.JK" if market == "IDX" else ticker
@@ -439,12 +427,20 @@ def run_ai_broker_team(market, holdings, live_prices):
     4. **analyst.md**: Deliver clear, actionable takeaways, profit targets, and stop-loss rules for the portfolio owner.
     """
 
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"⚠️ Unable to generate AI analysis: {str(e)}"
+    model_candidates = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"]
+    last_error = None
+
+    for m_name in model_candidates:
+        try:
+            model = genai.GenerativeModel(m_name)
+            response = model.generate_content(prompt)
+            if response and response.text:
+                return response.text
+        except Exception as e:
+            last_error = e
+            continue
+
+    return f"⚠️ Unable to generate AI analysis: {str(last_error)}"
 
 # 5. Master Constants
 MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
@@ -603,10 +599,7 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# ============================================================
-# 9. CENTERED HERO & WORKSPACE SELECTOR
-# ============================================================
-
+# 9. Centered Hero & Workspace Selector
 st.markdown("""
 <div class="hero-header">
   <div class="hero-title">Portfolio Terminal</div>
@@ -638,7 +631,7 @@ if st.session_state.get(auth_key, False):
         st.warning("⚠️ Session expired due to 10 minutes of inactivity. Please re-enter your password.")
         st.rerun()
 
-# 10. Material You Authentication Card (If not unlocked)
+# 10. Authentication Form
 if not st.session_state.get(auth_key, False):
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
@@ -667,7 +660,7 @@ if not st.session_state.get(auth_key, False):
                     
     st.stop()
 
-# 11. Authenticated Centered Banner & Aligned Controls
+# 11. Centered Banner & Aligned Controls
 st.markdown(f"""
 <div class="m3-banner-centered">
   <div class="m3-subtitle">Active Trading Account</div>
@@ -721,7 +714,6 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
     net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
     pnl_class = "badge-tonal-green" if net_pnl >= 0 else "badge-tonal-red"
 
-    # KPI Top Bar
     disp_val = mask_value(f"{total_market_val:,.2f} {currency}", is_censored)
     disp_cost = mask_value(f"{total_cost_basis:,.2f} {currency}", is_censored)
     disp_pnl = mask_value(f"{net_pnl:+,.2f} ({net_pnl_pct:+.2f}%)", is_censored)
@@ -976,7 +968,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
     else:
         st.caption("Active positions will populate live news feeds.")
 
-    # AI Broker Team Briefing Module (analyst.md) - Fixed State Persistence
+    # AI Broker Team Briefing Module
     st.markdown("#### 🤖 AI Broker Team (analyst.md)")
     ai_report_key = f"ai_report_{p_prefix}_{market}"
     is_report_available = ai_report_key in st.session_state and bool(st.session_state[ai_report_key])
@@ -986,7 +978,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
         with col_act1:
             if st.button(f"Summon Analyst Team ({market})", key=f"run_ai_{p_prefix}_{market}", use_container_width=True):
                 st.session_state[time_key] = time.time()
-                with st.spinner("analyst.md is delegating to economist, stock analyst, and QA..."):
+                with st.spinner("analyst.md is running research, FA/TA, and QA audits via Gemini 3.8 Flash..."):
                     result_text = run_ai_broker_team(market, holdings, live_prices)
                     st.session_state[ai_report_key] = result_text
                     st.rerun()
