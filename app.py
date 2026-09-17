@@ -442,7 +442,7 @@ def run_ai_broker_team(market, holdings, live_prices):
     try:
         # Grounded search execution
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-3.8-flash",
             tools=[{"google_search": {}}]
         )
         response = model.generate_content(prompt)
@@ -450,7 +450,7 @@ def run_ai_broker_team(market, holdings, live_prices):
     except Exception:
         # Fallback to standard execution if SDK version differs
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-3.8-flash")
             response = model.generate_content(prompt)
             return response.text
         except Exception as e:
