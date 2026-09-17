@@ -16,7 +16,7 @@ st.set_page_config(
 # 2. Auto-refresh every 15 seconds (Price polling & idle watchdog)
 st_autorefresh(interval=15000, key="datarefresh")
 
-# 3. Google Material You (Material 3) Design System (Exact Styling, Centered)
+# 3. Google Material You (Material 3) Design System
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;700&display=swap');
@@ -50,7 +50,7 @@ st.markdown("""
   }
 
   /* ============================================================
-     HERO & WORKSPACE SELECTOR (STRICT HORIZONTAL CENTERING)
+     HERO & WORKSPACE SELECTOR (STRICT MIDLINE CENTERING)
      ============================================================ */
 
   .hero-header {
@@ -73,8 +73,8 @@ st.markdown("""
     display: none !important;
   }
 
-  /* Center the element container holding the radio */
-  div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) {
+  /* Center the element container holding the root Workspace Selector */
+  div[data-testid="stElementContainer"]:has(> div[data-testid="stRadio"]) {
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
@@ -82,7 +82,7 @@ st.markdown("""
     margin: 0 auto !important;
   }
 
-  /* Force the radio container to flex-center */
+  /* Force the root radio container to flex-center */
   div[data-testid="stRadio"],
   div.stRadio {
     width: 100% !important;
@@ -127,6 +127,15 @@ st.markdown("""
     min-height: 38px !important;
   }
 
+  /* Hide the radio input element */
+  div[data-testid="stRadio"] div[role="radiogroup"] input[type="radio"] {
+    display: none !important;
+  }
+
+  div[data-testid="stRadio"] div[role="radiogroup"] div[aria-hidden="true"] {
+    display: none !important;
+  }
+
   /* Segment Option Text */
   div[data-testid="stRadio"] div[role="radiogroup"] label div,
   div[data-testid="stRadio"] div[role="radiogroup"] label p,
@@ -155,6 +164,56 @@ st.markdown("""
   div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) span {
     color: var(--md-sys-color-on-secondary-container) !important;
     font-weight: 600 !important;
+  }
+
+  /* ============================================================
+     SCOPED CONTROLS: AVG/FIFO (LEFT) & TOGGLE/LOCK (RIGHT)
+     ============================================================ */
+
+  /* Override for Cost Basis Selector inside columns: ALIGN LEFT */
+  div[data-testid="stColumn"] div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  div[data-testid="stColumn"] div[data-testid="stRadio"],
+  div[data-testid="stColumn"] div.stRadio {
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    margin: 0 !important;
+  }
+
+  div[data-testid="stColumn"] div[data-testid="stRadio"] > div[role="radiogroup"],
+  div[data-testid="stColumn"] div.stRadio > div[role="radiogroup"] {
+    justify-content: flex-start !important;
+    align-self: flex-start !important;
+    margin: 0 !important;
+  }
+
+  /* Align Privacy Mode Toggle & Lock Button to the RIGHT */
+  div[data-testid="stColumn"] div[data-testid="stToggle"],
+  div[data-testid="stColumn"] div.stToggle {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    margin-left: auto !important;
+    width: 100% !important;
+  }
+
+  div[data-testid="stColumn"] div[data-testid="stToggle"] label,
+  div[data-testid="stColumn"] div.stToggle label {
+    margin-left: auto !important;
+    justify-content: flex-end !important;
+  }
+
+  div[data-testid="stColumn"] div.stButton {
+    display: flex !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
   }
 
   /* ============================================================
@@ -563,7 +622,7 @@ if not st.session_state.get(auth_key, False):
                     
     st.stop()
 
-# 11. Authenticated Centered Banner & Workspace Quick Controls
+# 11. Authenticated Centered Banner & Aligned Controls
 st.markdown(f"""
 <div class="m3-banner-centered">
   <div class="m3-subtitle">Active Trading Account</div>
@@ -572,8 +631,9 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([2, 1, 1])
-with ctrl_c1:
+# Controls layout: Cost basis on the left (ctrl_left), space in middle, toggle and button on the right
+ctrl_left, ctrl_spacer, ctrl_toggle, ctrl_lock = st.columns([3.0, 3.0, 2.2, 1.8])
+with ctrl_left:
     cost_method = st.radio(
         "Cost Basis Mode",
         ["AVG", "FIFO"],
@@ -581,9 +641,9 @@ with ctrl_c1:
         key=f"{entity_prefix}_cost_method",
         label_visibility="collapsed"
     )
-with ctrl_c2:
+with ctrl_toggle:
     is_censored = st.toggle("🔒 Privacy Mode", value=False, key=f"{entity_prefix}_privacy")
-with ctrl_c3:
+with ctrl_lock:
     if st.button("🔒 Lock Terminal", key=f"lock_btn_{entity_prefix}", use_container_width=True):
         st.session_state[auth_key] = False
         st.rerun()
