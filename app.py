@@ -16,12 +16,11 @@ st.set_page_config(
 # 2. Auto-refresh every 15 seconds
 st_autorefresh(interval=15000, key="datarefresh")
 
-# 3. Google Material You (Material 3) Design System (CSS Injection)
+# 3. Google Material You (Material 3) Design System (Centered & Harmonized)
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;700&display=swap');
   
-  /* Material 3 Dark Palette Tokens */
   :root {
     --md-sys-color-background: #111318;
     --md-sys-color-surface: #111318;
@@ -51,31 +50,63 @@ st.markdown("""
   }
 
   /* ============================================================
-     MATERIAL YOU (M3) SEGMENTED BUTTONS (Portfolio & Accounting)
+     CENTERED HERO & WORKSPACE SELECTOR STYLING
      ============================================================ */
 
+  .hero-header {
+    text-align: center;
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  .hero-subtitle {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.35rem;
+  }
+
+  /* Center Streamlit Radio Group Container */
   div[data-testid="stRadio"] {
-    margin-bottom: 0.5rem;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    margin: 0 auto 1.5rem auto !important;
   }
 
   div[data-testid="stRadio"] > label {
     display: none !important;
   }
 
-  /* Segmented Button Outlined Track */
+  /* Centered Pill Track */
   div[data-testid="stRadio"] > div[role="radiogroup"] {
     display: inline-flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
     gap: 0px !important;
     background-color: var(--md-sys-color-surface-container-low) !important;
     border: 1px solid var(--md-sys-color-outline-variant) !important;
     border-radius: 28px !important;
     padding: 4px !important;
-    box-shadow: none !important;
+    margin: 0 auto !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
   }
 
-  /* Individual Segment */
+  /* Segment Button Items */
   div[data-testid="stRadio"] label {
     display: flex !important;
     align-items: center !important;
@@ -83,28 +114,24 @@ st.markdown("""
     background: transparent !important;
     border: none !important;
     border-radius: 24px !important;
-    padding: 8px 20px !important;
+    padding: 8px 22px !important;
     margin: 0 !important;
     cursor: pointer !important;
     transition: background-color 0.2s ease, color 0.2s ease !important;
-    box-shadow: none !important;
   }
 
-  /* Hide default radio circle */
   div[data-testid="stRadio"] label > div:first-child {
     display: none !important;
   }
 
-  /* Label text */
   div[data-testid="stRadio"] label div,
   div[data-testid="stRadio"] label p,
   div[data-testid="stRadio"] label span {
-    font-size: 0.875rem !important;
+    font-size: 0.88rem !important;
     font-weight: 500 !important;
     color: var(--md-sys-color-on-surface-variant) !important;
   }
 
-  /* Hover state */
   div[data-testid="stRadio"] label:hover {
     background-color: rgba(255, 255, 255, 0.05) !important;
   }
@@ -114,7 +141,6 @@ st.markdown("""
     color: #ffffff !important;
   }
 
-  /* Active / Selected Segment (M3 Secondary Container) */
   div[data-testid="stRadio"] label:has(input:checked) {
     background-color: var(--md-sys-color-secondary-container) !important;
   }
@@ -127,17 +153,23 @@ st.markdown("""
   }
 
   /* ============================================================
-     MATERIAL YOU SURFACES & CARDS
+     MATERIAL YOU CARDS & BANNER (CENTERED HARMONY)
      ============================================================ */
 
-  .m3-banner {
+  .m3-banner-centered {
     background-color: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: 24px;
-    padding: 1.25rem 1.75rem;
-    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    margin: 0 auto 1.5rem auto;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    max-width: 680px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
   .m3-title {
@@ -149,13 +181,12 @@ st.markdown("""
 
   .m3-subtitle {
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--md-sys-color-primary);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
-  /* M3 Elevated KPI Card */
   .m3-kpi-card {
     background-color: var(--md-sys-color-surface-container);
     border-radius: 20px;
@@ -179,7 +210,6 @@ st.markdown("""
     margin-top: 0.35rem;
   }
 
-  /* M3 Outlined Stock Holding Card */
   .m3-stock-card {
     background-color: var(--md-sys-color-surface-container-low);
     border: 1px solid var(--md-sys-color-outline-variant);
@@ -194,7 +224,6 @@ st.markdown("""
     border-color: var(--md-sys-color-primary);
   }
 
-  /* M3 Assist / Filter Chips */
   .m3-chip {
     background-color: var(--md-sys-color-surface-container-high);
     color: var(--md-sys-color-on-surface-variant);
@@ -223,7 +252,6 @@ st.markdown("""
     margin-top: 4px;
   }
 
-  /* Tonal Badges */
   .badge-tonal-green {
     background-color: #1a3826;
     color: #a8f5ba;
@@ -252,7 +280,6 @@ st.markdown("""
     letter-spacing: 0.04em;
   }
 
-  /* M3 Expanders */
   div[data-testid="stExpander"] {
     background-color: var(--md-sys-color-surface-container-low) !important;
     border: 1px solid var(--md-sys-color-outline-variant) !important;
@@ -260,7 +287,6 @@ st.markdown("""
     margin-bottom: 1rem;
   }
 
-  /* M3 Filled Buttons */
   div.stButton > button {
     background-color: var(--md-sys-color-primary) !important;
     color: var(--md-sys-color-on-primary) !important;
@@ -277,7 +303,6 @@ st.markdown("""
     opacity: 0.9 !important;
   }
 
-  /* Material 3 Tabs */
   button[data-baseweb="tab"] {
     background: transparent !important;
     border-radius: 12px !important;
@@ -290,7 +315,6 @@ st.markdown("""
     background-color: var(--md-sys-color-surface-container-high) !important;
   }
 
-  /* Authentication Card */
   .m3-auth-card {
     background-color: var(--md-sys-color-surface-container);
     border: 1px solid var(--md-sys-color-outline-variant);
@@ -469,16 +493,19 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 9. Top Navigation & Portfolio Chooser (M3 Segmented Buttons)
+# ============================================================
+# 9. CENTERED HERO & WORKSPACE SELECTOR
+# ============================================================
+
 st.markdown("""
-<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.25rem;">
-  <span style="font-size: 1.45rem; font-weight: 700; color: #e2e2e9;">Portfolio Terminal</span>
-  <span style="font-size: 0.8rem; color: #8c9199; font-weight: 500;">Material You System</span>
+<div class="hero-header">
+  <div class="hero-title">Portfolio Terminal</div>
+  <div class="hero-subtitle">Workspace Selector</div>
 </div>
 """, unsafe_allow_html=True)
 
 entity_choice = st.radio(
-    "Workspace Selection",
+    "Workspace Selector",
     ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
     horizontal=True,
     label_visibility="collapsed"
@@ -531,13 +558,11 @@ if not st.session_state.get(auth_key, False):
                     
     st.stop()
 
-# 11. Authenticated Banner & Accounting Method Segmented Switcher
+# 11. Authenticated Centered Banner & Workspace Quick Controls
 st.markdown(f"""
-<div class="m3-banner">
-  <div>
-    <div class="m3-subtitle">Active Trading Account</div>
-    <div class="m3-title">{entity_name}</div>
-  </div>
+<div class="m3-banner-centered">
+  <div class="m3-subtitle">Active Trading Account</div>
+  <div class="m3-title">{entity_name}</div>
   <div>{badge_html}</div>
 </div>
 """, unsafe_allow_html=True)
