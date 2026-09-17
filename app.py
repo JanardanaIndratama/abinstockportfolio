@@ -5,6 +5,9 @@ import time
 from supabase import create_client
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
+import json
+import feedparser
+import google.generativeai as genai
 
 # 1. Page Configuration
 st.set_page_config(
@@ -67,13 +70,11 @@ st.markdown("""
     margin: 0;
   }
 
-  /* Hide residual Streamlit widget labels */
   div[data-testid="stRadio"] > label,
   div[data-testid="stRadio"] [data-testid="stWidgetLabel"] {
     display: none !important;
   }
 
-  /* Center the element container holding the root Workspace Selector */
   div[data-testid="stElementContainer"]:has(> div[data-testid="stRadio"]) {
     display: flex !important;
     justify-content: center !important;
@@ -82,7 +83,6 @@ st.markdown("""
     margin: 0 auto !important;
   }
 
-  /* Force the root radio container to flex-center */
   div[data-testid="stRadio"],
   div.stRadio {
     width: 100% !important;
@@ -94,7 +94,6 @@ st.markdown("""
     margin: 0 auto 1.5rem auto !important;
   }
 
-  /* Centered Pill Track */
   div[data-testid="stRadio"] > div[role="radiogroup"],
   div.stRadio > div[role="radiogroup"] {
     display: inline-flex !important;
@@ -112,7 +111,6 @@ st.markdown("""
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
   }
 
-  /* Segment Item (Label) */
   div[data-testid="stRadio"] div[role="radiogroup"] label {
     display: inline-flex !important;
     align-items: center !important;
@@ -127,7 +125,6 @@ st.markdown("""
     min-height: 38px !important;
   }
 
-  /* Hide the radio input element */
   div[data-testid="stRadio"] div[role="radiogroup"] input[type="radio"] {
     display: none !important;
   }
@@ -136,7 +133,6 @@ st.markdown("""
     display: none !important;
   }
 
-  /* Segment Option Text */
   div[data-testid="stRadio"] div[role="radiogroup"] label div,
   div[data-testid="stRadio"] div[role="radiogroup"] label p,
   div[data-testid="stRadio"] div[role="radiogroup"] label span {
@@ -154,7 +150,6 @@ st.markdown("""
     color: #ffffff !important;
   }
 
-  /* Active Segment Tonal Container */
   div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
     background-color: var(--md-sys-color-secondary-container) !important;
   }
@@ -170,7 +165,6 @@ st.markdown("""
      SCOPED CONTROLS: AVG/FIFO (LEFT) & TOGGLE/LOCK (RIGHT)
      ============================================================ */
 
-  /* Override for Cost Basis Selector inside columns: ALIGN LEFT */
   div[data-testid="stColumn"] div[data-testid="stElementContainer"]:has(div[data-testid="stRadio"]) {
     display: flex !important;
     justify-content: flex-start !important;
@@ -194,7 +188,6 @@ st.markdown("""
     margin: 0 !important;
   }
 
-  /* Align Privacy Mode Toggle & Lock Button to the RIGHT */
   div[data-testid="stColumn"] div[data-testid="stToggle"],
   div[data-testid="stColumn"] div.stToggle {
     display: flex !important;
@@ -400,6 +393,59 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# Configure Gemini AI Engine
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+def run_ai_broker_team(market, holdings, live_prices):
+    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md"""
+    if not holdings:
+        return "No active holdings to analyze. Please log a transaction first."
+    
+    # 1. Gather recent news headlines for top holdings
+    news_brief = {}
+    for ticker in list(holdings.keys())[:5]:
+        sym = f"{ticker}.JK" if market == "IDX" else ticker
+        try:
+            feed_items = yf.Ticker(sym).news
+            news_brief[ticker] = [n.get("title", "") for n in (feed_items or [])[:2]]
+        except Exception:
+            news_brief[ticker] = []
+
+    # 2. Compile portfolio state
+    summary = []
+    for t, h in holdings.items():
+        curr_p = live_prices.get(t, h["avg_cost"])
+        pnl = ((curr_p - h["avg_cost"]) / h["avg_cost"]) * 100
+        summary.append(f"- {t}: Avg Cost {h['avg_cost']:,.2f}, Live {curr_p:,.2f}, Unrealized Return {pnl:+.2f}%")
+
+    portfolio_str = "\n".join(summary)
+    news_str = json.dumps(news_brief)
+
+    # 3. Master Orchestration Prompt
+    prompt = f"""
+    You are analyst.md orchestrating your research team for the {market} market.
+    
+    Current Portfolio Status:
+    {portfolio_str}
+
+    Recent Stock News Headlines:
+    {news_str}
+
+    Conduct your team briefing step-by-step:
+    1. **economist.md**: Review the current macro/interest rate climate for {market}, sector tailwinds, and risks.
+    2. **stockanalyst.md**: Audit fundamentals (Safety Net rating) and technical momentum (Bullish/Bearish bias) for these positions.
+    3. **analystqa.md**: Play devil's advocate. Challenge assumptions, identify downside risks, and flag warning signs.
+    4. **analyst.md**: Deliver clear, actionable takeaways and risk management instructions for the portfolio owner.
+    """
+
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"⚠️ Unable to generate AI analysis: {str(e)}"
+
 # 5. Master Constants
 MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
 MERAKI_BROKERS_IDX = ["Stockbit", "SimInvest", "Mirae", "growin'", "Ajaib"]
@@ -567,7 +613,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Directly centered at page level without column offset
 entity_choice = st.radio(
     "Workspace Selector",
     ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
@@ -631,7 +676,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Controls layout: Cost basis on the left (ctrl_left), space in middle, toggle and button on the right
 ctrl_left, ctrl_spacer, ctrl_toggle, ctrl_lock = st.columns([3.0, 3.0, 2.2, 1.8])
 with ctrl_left:
     cost_method = st.radio(
@@ -931,6 +975,14 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
                 pass
     else:
         st.caption("Active positions will populate live news feeds.")
+
+    # AI Broker Team Briefing Module (analyst.md)
+    st.markdown("#### 🤖 AI Broker Team (analyst.md)")
+    with st.expander("⚡ Request Portfolio Briefing & Stress Test", expanded=False):
+        if st.button(f"Summon Analyst Team ({market})", key=f"run_ai_{p_prefix}_{market}"):
+            with st.spinner("analyst.md is delegating to economist, stock analyst, and QA..."):
+                report = run_ai_broker_team(market, holdings, live_prices)
+                st.markdown(report)
 
     # Swing Recommendations
     st.markdown("#### 🎯 Swing Setups (1-2 Week Horizon)")
