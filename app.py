@@ -8,237 +8,212 @@ from streamlit_autorefresh import st_autorefresh
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="FinTech Portfolio & Swing Radar",
+    page_title="Stock Portfolio Terminal",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 2. Auto-refresh every 15 seconds (Acts as a price poller and security heartbeat)
+# 2. Auto-refresh every 15 seconds
 st_autorefresh(interval=15000, key="datarefresh")
 
-# 3. Liquid Glass Design System (CSS Injection)
+# 3. Google Material You (Material 3) Design System (CSS Injection)
 st.markdown("""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;700&display=swap');
   
+  /* Material 3 Dark Palette Tokens */
+  :root {
+    --md-sys-color-background: #111318;
+    --md-sys-color-surface: #111318;
+    --md-sys-color-surface-container-low: #191c20;
+    --md-sys-color-surface-container: #1d2024;
+    --md-sys-color-surface-container-high: #282a2f;
+    --md-sys-color-surface-container-highest: #33353a;
+    --md-sys-color-primary: #a8c7fa;
+    --md-sys-color-on-primary: #062e6f;
+    --md-sys-color-primary-container: #234785;
+    --md-sys-color-on-primary-container: #d3e3fd;
+    --md-sys-color-secondary-container: #384656;
+    --md-sys-color-on-secondary-container: #dbe4f6;
+    --md-sys-color-outline: #8c9199;
+    --md-sys-color-outline-variant: #43474e;
+    --md-sys-color-on-surface: #e2e2e9;
+    --md-sys-color-on-surface-variant: #c3c7cf;
+  }
+
   html, body, [class*="css"] {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Google Sans', 'Roboto', -apple-system, sans-serif;
   }
 
   .stApp {
-    background: radial-gradient(circle at 10% 20%, #0c101c 0%, #07090e 90%);
-    color: #f1f5f9;
+    background-color: var(--md-sys-color-background);
+    color: var(--md-sys-color-on-surface);
   }
 
   /* ============================================================
-     LIQUID GLASS SEGMENTED BUTTONS (Portfolio & Accounting)
+     MATERIAL YOU (M3) SEGMENTED BUTTONS (Portfolio & Accounting)
      ============================================================ */
-  
-  /* Container for the segmented options */
+
   div[data-testid="stRadio"] {
     margin-bottom: 0.5rem;
   }
 
-  /* Hide default top labels if they exist */
   div[data-testid="stRadio"] > label {
     display: none !important;
   }
 
-  /* The outer liquid pill track */
+  /* Segmented Button Outlined Track */
   div[data-testid="stRadio"] > div[role="radiogroup"] {
     display: inline-flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
-    gap: 6px !important;
-    background: rgba(15, 23, 42, 0.45) !important;
-    padding: 5px !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+    gap: 0px !important;
+    background-color: var(--md-sys-color-surface-container-low) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    border-radius: 28px !important;
+    padding: 4px !important;
+    box-shadow: none !important;
   }
 
-  /* Individual Liquid Glass Button */
+  /* Individual Segment */
   div[data-testid="stRadio"] label {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.11) !important;
-    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.22), 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border-radius: 10px !important;
-    padding: 8px 18px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 24px !important;
+    padding: 8px 20px !important;
     margin: 0 !important;
     cursor: pointer !important;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    position: relative !important;
-    overflow: hidden !important;
+    transition: background-color 0.2s ease, color 0.2s ease !important;
+    box-shadow: none !important;
   }
 
-  /* Specular sheen reflection on top half of button */
-  div[data-testid="stRadio"] label::before {
-    content: '' !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    height: 42% !important;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%) !important;
-    border-radius: 10px 10px 0 0 !important;
-    pointer-events: none !important;
-  }
-
-  /* Hide default circular radio input dot */
+  /* Hide default radio circle */
   div[data-testid="stRadio"] label > div:first-child {
     display: none !important;
   }
 
-  /* Typography inside button */
+  /* Label text */
   div[data-testid="stRadio"] label div,
   div[data-testid="stRadio"] label p,
   div[data-testid="stRadio"] label span {
-    font-weight: 600 !important;
-    font-size: 0.86rem !important;
-    letter-spacing: 0.015em !important;
-    color: #94a3b8 !important;
-    transition: color 0.2s ease, text-shadow 0.2s ease !important;
-    z-index: 1 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--md-sys-color-on-surface-variant) !important;
   }
 
   /* Hover state */
   div[data-testid="stRadio"] label:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 100%) !important;
-    border-color: rgba(255, 255, 255, 0.24) !important;
-    box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.4), 0 6px 18px rgba(0, 0, 0, 0.3) !important;
-    transform: translateY(-1px) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
   }
 
-  div[data-testid="stRadio"] label:hover div,
-  div[data-testid="stRadio"] label:hover p,
-  div[data-testid="stRadio"] label:hover span {
-    color: #f1f5f9 !important;
+  div[data-testid="stRadio"] label:hover span,
+  div[data-testid="stRadio"] label:hover p {
+    color: #ffffff !important;
   }
 
-  /* Selected / Active State (Liquid Indigo Glow) */
+  /* Active / Selected Segment (M3 Secondary Container) */
   div[data-testid="stRadio"] label:has(input:checked) {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.42) 0%, rgba(59, 130, 246, 0.2) 50%, rgba(99, 102, 241, 0.32) 100%) !important;
-    border: 1px solid rgba(165, 180, 252, 0.55) !important;
-    box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.55), 
-                0 0 20px rgba(99, 102, 241, 0.38), 
-                0 6px 16px rgba(0, 0, 0, 0.35) !important;
+    background-color: var(--md-sys-color-secondary-container) !important;
   }
 
   div[data-testid="stRadio"] label:has(input:checked) div,
   div[data-testid="stRadio"] label:has(input:checked) p,
   div[data-testid="stRadio"] label:has(input:checked) span {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-    text-shadow: 0 0 12px rgba(255, 255, 255, 0.45) !important;
+    color: var(--md-sys-color-on-secondary-container) !important;
+    font-weight: 600 !important;
   }
 
   /* ============================================================
-     SURFACE & CARD STYLING
+     MATERIAL YOU SURFACES & CARDS
      ============================================================ */
 
-  .entity-banner {
-    background: linear-gradient(90deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(16px);
-    border-radius: 16px;
-    padding: 1rem 1.5rem;
+  .m3-banner {
+    background-color: var(--md-sys-color-surface-container);
+    border-radius: 24px;
+    padding: 1.25rem 1.75rem;
     margin-bottom: 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
 
-  .entity-title {
-    font-size: 1.35rem;
+  .m3-title {
+    font-size: 1.4rem;
     font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #f8fafc;
+    color: var(--md-sys-color-on-surface);
+    letter-spacing: -0.01em;
   }
 
-  .entity-subtitle {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #94a3b8;
+  .m3-subtitle {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--md-sys-color-primary);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
 
-  .kpi-card {
-    background: rgba(22, 28, 45, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(16px);
-    border-radius: 16px;
-    padding: 1.25rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  /* M3 Elevated KPI Card */
+  .m3-kpi-card {
+    background-color: var(--md-sys-color-surface-container);
+    border-radius: 20px;
+    padding: 1.25rem 1.5rem;
     margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 
-  .kpi-title {
+  .m3-kpi-title {
     font-size: 0.8rem;
-    font-weight: 600;
-    color: #94a3b8;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
   }
 
-  .kpi-value {
-    font-size: 1.65rem;
+  .m3-kpi-value {
+    font-size: 1.75rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--md-sys-color-on-surface);
     margin-top: 0.35rem;
   }
 
-  .stock-card {
-    background: rgba(20, 26, 42, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 14px;
-    padding: 1.15rem;
+  /* M3 Outlined Stock Holding Card */
+  .m3-stock-card {
+    background-color: var(--md-sys-color-surface-container-low);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 18px;
+    padding: 1.25rem;
     margin-bottom: 0.85rem;
-    backdrop-filter: blur(12px);
-    transition: transform 0.15s ease, border-color 0.15s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
-  .stock-card:hover {
-    border-color: rgba(99, 102, 241, 0.45);
-    transform: translateY(-2px);
+  .m3-stock-card:hover {
+    background-color: var(--md-sys-color-surface-container);
+    border-color: var(--md-sys-color-primary);
   }
 
-  .sector-container {
-    background: rgba(18, 24, 40, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
-    backdrop-filter: blur(8px);
-  }
-
-  .sector-pill {
-    background: rgba(99, 102, 241, 0.15);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-size: 0.78rem;
-    font-weight: 600;
+  /* M3 Assist / Filter Chips */
+  .m3-chip {
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
     margin-right: 0.5rem;
     margin-bottom: 0.4rem;
   }
 
-  .sub-badge {
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #cbd5e1;
+  .m3-sub-chip {
+    background-color: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface);
+    border-radius: 8px;
     padding: 3px 8px;
-    border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 500;
     display: inline-flex;
@@ -248,75 +223,87 @@ st.markdown("""
     margin-top: 4px;
   }
 
-  .badge-green {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 3px 10px;
-    border-radius: 9999px;
+  /* Tonal Badges */
+  .badge-tonal-green {
+    background-color: #1a3826;
+    color: #a8f5ba;
+    padding: 4px 10px;
+    border-radius: 8px;
     font-weight: 600;
     font-size: 0.78rem;
   }
 
-  .badge-red {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    padding: 3px 10px;
-    border-radius: 9999px;
+  .badge-tonal-red {
+    background-color: #441816;
+    color: #f2b8b5;
+    padding: 4px 10px;
+    border-radius: 8px;
     font-weight: 600;
     font-size: 0.78rem;
   }
 
-  .corp-tag {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    padding: 4px 12px;
-    border-radius: 9999px;
+  .badge-entity {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    padding: 5px 14px;
+    border-radius: 12px;
     font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
 
-  .auth-card {
-    background: rgba(22, 28, 45, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(20px);
-    border-radius: 20px;
-    padding: 2.5rem 2rem;
-    max-width: 460px;
-    margin: 3rem auto;
-    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
-    text-align: center;
-  }
-
+  /* M3 Expanders */
   div[data-testid="stExpander"] {
-    background: rgba(18, 24, 38, 0.5) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 14px !important;
-    backdrop-filter: blur(8px);
+    background-color: var(--md-sys-color-surface-container-low) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    border-radius: 16px !important;
     margin-bottom: 1rem;
   }
 
+  /* M3 Filled Buttons */
   div.stButton > button {
-    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
-    color: white !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 10px !important;
+    background-color: var(--md-sys-color-primary) !important;
+    color: var(--md-sys-color-on-primary) !important;
+    border: none !important;
+    border-radius: 20px !important;
     font-weight: 600 !important;
-    padding: 0.5rem 1.25rem !important;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(79, 70, 229, 0.35) !important;
-    transition: transform 0.15s ease !important;
+    font-size: 0.875rem !important;
+    padding: 0.55rem 1.5rem !important;
+    box-shadow: none !important;
+    transition: opacity 0.2s ease !important;
   }
 
   div.stButton > button:hover {
-    transform: translateY(-1px) !important;
+    opacity: 0.9 !important;
+  }
+
+  /* Material 3 Tabs */
+  button[data-baseweb="tab"] {
+    background: transparent !important;
+    border-radius: 12px !important;
+    color: var(--md-sys-color-on-surface-variant) !important;
+    font-weight: 600 !important;
+  }
+
+  button[aria-selected="true"] {
+    color: var(--md-sys-color-primary) !important;
+    background-color: var(--md-sys-color-surface-container-high) !important;
+  }
+
+  /* Authentication Card */
+  .m3-auth-card {
+    background-color: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 28px;
+    padding: 2.5rem 2rem;
+    max-width: 440px;
+    margin: 3rem auto;
+    text-align: center;
   }
 </style>
 """, unsafe_allow_html=True)
 
-# 4. Database Setup
+# 4. Database Connection
 @st.cache_resource
 def init_supabase():
     url = st.secrets["SUPABASE_URL"]
@@ -469,7 +456,7 @@ def render_tradingview(symbol):
         "theme": "dark",
         "style": "1",
         "locale": "en",
-        "toolbar_bg": "#f1f3f6",
+        "toolbar_bg": "#1d2024",
         "enable_publishing": false,
         "hide_top_toolbar": false,
         "container_id": "tv_chart_{symbol}"
@@ -482,16 +469,16 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 9. Top Navigation & Portfolio Chooser (Liquid Glass Controls)
+# 9. Top Navigation & Portfolio Chooser (M3 Segmented Buttons)
 st.markdown("""
-<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.35rem;">
-  <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: #f8fafc;">⚡ FinTech Terminal</span>
-  <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Zero-Trust Portfolio Hub</span>
+<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.25rem;">
+  <span style="font-size: 1.45rem; font-weight: 700; color: #e2e2e9;">Portfolio Terminal</span>
+  <span style="font-size: 0.8rem; color: #8c9199; font-weight: 500;">Material You System</span>
 </div>
 """, unsafe_allow_html=True)
 
 entity_choice = st.radio(
-    "Portfolio Chooser",
+    "Workspace Selection",
     ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
     horizontal=True,
     label_visibility="collapsed"
@@ -501,12 +488,12 @@ is_meraki = (entity_choice == "🏛️ Meraki Mahardika Investama")
 entity_prefix = "meraki" if is_meraki else "pers"
 active_table = "meraki_transactions" if is_meraki else "stock_transactions"
 entity_name = "Meraki Mahardika Investama" if is_meraki else "Personal Portfolio"
-badge_html = '<span class="corp-tag">CORPORATE ENTITY</span>' if is_meraki else '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
+badge_html = '<span class="badge-entity">CORPORATE ENTITY</span>' if is_meraki else '<span class="badge-entity" style="background-color: #384656; color: #dbe4f6;">INDIVIDUAL</span>'
 
 auth_key = f"{entity_prefix}_is_authenticated"
 time_key = f"{entity_prefix}_last_activity"
 
-# Check Inactivity Timeout (10 minutes)
+# Inactivity Timeout Guard (10 minutes)
 if st.session_state.get(auth_key, False):
     last_act = st.session_state.get(time_key, time.time())
     elapsed = time.time() - last_act
@@ -515,16 +502,16 @@ if st.session_state.get(auth_key, False):
         st.warning("⚠️ Session expired due to 10 minutes of inactivity. Please re-enter your password.")
         st.rerun()
 
-# 10. Authentication Gateway (If not authenticated)
+# 10. Material You Authentication Card (If not unlocked)
 if not st.session_state.get(auth_key, False):
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
         st.markdown(f"""
-            <div class="auth-card">
+            <div class="m3-auth-card">
               <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔒</div>
-              <div style="font-size: 1.25rem; font-weight: 700; color: #f8fafc;">{entity_name}</div>
-              <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px; margin-bottom: 1.5rem;">
-                Protected Terminal · Password Required
+              <div style="font-size: 1.3rem; font-weight: 700; color: #e2e2e9;">{entity_name}</div>
+              <div style="font-size: 0.85rem; color: #8c9199; margin-top: 4px; margin-bottom: 1.5rem;">
+                Protected Workspace · Password Required
               </div>
             </div>
         """, unsafe_allow_html=True)
@@ -544,12 +531,12 @@ if not st.session_state.get(auth_key, False):
                     
     st.stop()
 
-# 11. Authenticated Workspace Header & Controls
+# 11. Authenticated Banner & Accounting Method Segmented Switcher
 st.markdown(f"""
-<div class="entity-banner">
+<div class="m3-banner">
   <div>
-    <div class="entity-subtitle">Active Trading Account</div>
-    <div class="entity-title">{entity_name}</div>
+    <div class="m3-subtitle">Active Trading Account</div>
+    <div class="m3-title">{entity_name}</div>
   </div>
   <div>{badge_html}</div>
 </div>
@@ -558,7 +545,7 @@ st.markdown(f"""
 ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([3, 1, 1])
 with ctrl_c1:
     cost_method = st.radio(
-        "Accounting Method",
+        "Cost Basis Mode",
         ["AVG", "FIFO"],
         horizontal=True,
         key=f"{entity_prefix}_cost_method",
@@ -598,7 +585,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
 
     net_pnl = total_market_val - total_cost_basis
     net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
-    pnl_class = "badge-green" if net_pnl >= 0 else "badge-red"
+    pnl_class = "badge-tonal-green" if net_pnl >= 0 else "badge-tonal-red"
 
     # KPI Top Bar
     disp_val = mask_value(f"{total_market_val:,.2f} {currency}", is_censored)
@@ -607,21 +594,21 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
 
     c1, c2, c3 = st.columns(3)
     c1.markdown(f"""
-        <div class="kpi-card">
-          <div class="kpi-title">Portfolio Value</div>
-          <div class="kpi-value">{disp_val}</div>
+        <div class="m3-kpi-card">
+          <div class="m3-kpi-title">Portfolio Value</div>
+          <div class="m3-kpi-value">{disp_val}</div>
         </div>
     """, unsafe_allow_html=True)
     c2.markdown(f"""
-        <div class="kpi-card">
-          <div class="kpi-title">Total Cost Basis</div>
-          <div class="kpi-value">{disp_cost}</div>
+        <div class="m3-kpi-card">
+          <div class="m3-kpi-title">Total Cost Basis</div>
+          <div class="m3-kpi-value">{disp_cost}</div>
         </div>
     """, unsafe_allow_html=True)
     c3.markdown(f"""
-        <div class="kpi-card">
-          <div class="kpi-title">Net Unrealized P&L</div>
-          <div class="kpi-value" style="font-size: 1.35rem; margin-top: 0.55rem;">
+        <div class="m3-kpi-card">
+          <div class="m3-kpi-title">Net Unrealized P&L</div>
+          <div class="m3-kpi-value" style="font-size: 1.35rem; margin-top: 0.55rem;">
             <span class="{pnl_class}">{disp_pnl}</span>
           </div>
         </div>
@@ -636,11 +623,11 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
             mkt_v = h["shares"] * live_prices.get(t, h["avg_cost"])
             sector_weights[sec] = sector_weights.get(sec, 0.0) + mkt_v
 
-        pills_html = '<div class="sector-container"><div style="margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: #94a3b8;">SECTOR EXPOSURE:</div>'
+        pills_html = '<div style="margin-bottom: 1.25rem;">'
         for sec, val in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
             pct = (val / total_market_val) * 100
             val_masked = mask_value(f"{val:,.2f} {currency}", is_censored)
-            pills_html += f'<span class="sector-pill">{sec} &nbsp;|&nbsp; {pct:.1f}% ({val_masked})</span>'
+            pills_html += f'<span class="m3-chip">{sec} &nbsp;·&nbsp; {pct:.1f}% ({val_masked})</span>'
         pills_html += '</div>'
         st.markdown(pills_html, unsafe_allow_html=True)
     else:
@@ -661,7 +648,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
             sec_weight = (sec_total_val / total_market_val * 100) if total_market_val > 0 else 0
             sec_val_display = mask_value(f"{sec_total_val:,.2f} {currency}", is_censored)
 
-            st.markdown(f"##### 🏷️ {sec} &nbsp;<span style='font-size:0.8rem; color:#94a3b8;'>({sec_weight:.1f}% · {sec_val_display})</span>", unsafe_allow_html=True)
+            st.markdown(f"##### 🏷️ {sec} &nbsp;<span style='font-size:0.8rem; color:#8c9199;'>({sec_weight:.1f}% · {sec_val_display})</span>", unsafe_allow_html=True)
             
             h_cols = st.columns(2)
             for idx_c, (t, h) in enumerate(items):
@@ -674,34 +661,34 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
                 cost_str = f"{h['avg_cost']:,.2f}"
                 val_str = f"{val:,.2f} {currency}"
                 pnl_str = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
-                badge = "badge-green" if pnl_val >= 0 else "badge-red"
+                badge = "badge-tonal-green" if pnl_val >= 0 else "badge-tonal-red"
 
                 sub_html = ""
                 if is_corp and h.get("breakdown"):
-                    sub_html = '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">'
-                    sub_html += '<div style="color: #94a3b8; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Ownership & Custody Breakdown:</div>'
+                    sub_html = '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--md-sys-color-outline-variant);">'
+                    sub_html += '<div style="color: #8c9199; font-size: 0.72rem; font-weight: 500; text-transform: uppercase; margin-bottom: 4px;">Ownership & Custody Breakdown:</div>'
                     sub_html += '<div style="display: flex; flex-wrap: wrap; gap: 4px;">'
                     for item in h["breakdown"]:
                         sub_qty = f"{int(item['shares']/100)} Lots" if market == "IDX" else f"{item['shares']} Shares"
                         masked_sub_qty = mask_value(sub_qty, is_censored)
-                        sub_html += f'<span class="sub-badge">👤 {item["trader"]} · 🏦 {item["broker"]} <strong style="color: #60a5fa; margin-left: 2px;">({masked_sub_qty})</strong></span>'
+                        sub_html += f'<span class="m3-sub-chip">👤 {item["trader"]} · 🏦 {item["broker"]} <strong>({masked_sub_qty})</strong></span>'
                     sub_html += '</div></div>'
 
                 col_target = h_cols[idx_c % 2]
                 col_target.markdown(f"""
-                    <div class="stock-card">
+                    <div class="m3-stock-card">
                       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <div>
-                          <span style="font-size: 1.2rem; font-weight: 700; color: #60a5fa;">{t}</span>
-                          <span style="font-size: 0.72rem; color: #94a3b8; margin-left: 6px;">{sec}</span>
+                          <span style="font-size: 1.25rem; font-weight: 700; color: #a8c7fa;">{t}</span>
+                          <span style="font-size: 0.75rem; color: #8c9199; margin-left: 6px;">{sec}</span>
                         </div>
                         <span class="{badge}">{mask_value(pnl_str, is_censored)}</span>
                       </div>
                       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
-                        <div><span style="color: #64748b;">Live Price:</span> <span style="font-weight: 600;">{curr_p:,.2f}</span></div>
-                        <div><span style="color: #64748b;">Total Position:</span> <span style="font-weight: 600;">{mask_value(qty_label, is_censored)}</span></div>
-                        <div><span style="color: #64748b;">Avg Cost:</span> <span style="font-weight: 600;">{mask_value(cost_str, is_censored)}</span></div>
-                        <div><span style="color: #64748b;">Market Value:</span> <span style="font-weight: 600;">{mask_value(val_str, is_censored)}</span></div>
+                        <div><span style="color: #8c9199;">Live Price:</span> <span style="font-weight: 500;">{curr_p:,.2f}</span></div>
+                        <div><span style="color: #8c9199;">Total Position:</span> <span style="font-weight: 500;">{mask_value(qty_label, is_censored)}</span></div>
+                        <div><span style="color: #8c9199;">Avg Cost:</span> <span style="font-weight: 500;">{mask_value(cost_str, is_censored)}</span></div>
+                        <div><span style="color: #8c9199;">Market Value:</span> <span style="font-weight: 500;">{mask_value(val_str, is_censored)}</span></div>
                       </div>
                       {sub_html}
                     </div>
