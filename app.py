@@ -24,10 +24,37 @@ st.markdown("""
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  /* Global Dark Glass Background */
   .stApp {
     background: radial-gradient(circle at 10% 20%, #0c101c 0%, #07090e 90%);
     color: #f1f5f9;
+  }
+
+  /* Entity Switcher Header Banner */
+  .entity-banner {
+    background: linear-gradient(90deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .entity-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #f8fafc;
+  }
+
+  .entity-subtitle {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   /* Frosted Glass KPI Cards */
@@ -117,6 +144,17 @@ st.markdown("""
     font-size: 0.78rem;
   }
 
+  .corp-tag {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
   /* Form & Expander Polish */
   div[data-testid="stExpander"] {
     background: rgba(18, 24, 38, 0.5) !important;
@@ -137,17 +175,9 @@ st.markdown("""
     box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3) !important;
   }
 
-  /* Streamlit Tabs */
-  button[data-baseweb="tab"] {
-    background: transparent !important;
-    border-radius: 8px !important;
-    color: #94a3b8 !important;
-    font-weight: 600 !important;
-  }
-
-  button[aria-selected="true"] {
-    color: #60a5fa !important;
-    background: rgba(59, 130, 246, 0.12) !important;
+  /* Segmented Control Styling */
+  div[data-testid="stRadio"] > div {
+    gap: 0.75rem;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -161,7 +191,7 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# 5. Cached Sector Lookup (24h Cache to prevent rate limits)
+# 5. Cached Sector Lookup (24h Cache)
 @st.cache_data(ttl=86400)
 def fetch_stock_sector(symbol):
     try:
@@ -288,19 +318,56 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 8. Header Controls
-st.markdown("### ⚡ FinTech Swing Radar")
+# 8. Master Entity Selection (Placed Above Everything)
+st.markdown("""
+<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.25rem;">
+  <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: #f8fafc;">⚡ FinTech Terminal</span>
+  <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Multi-Entity Portfolio Hub</span>
+</div>
+""", unsafe_allow_html=True)
 
+entity_choice = st.radio(
+    "Select Active Portfolio Workspace:",
+    ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+# Route Active Context
+if entity_choice == "👤 Personal Portfolio":
+    active_table = "stock_transactions"
+    entity_prefix = "pers"
+    entity_name = "Personal Portfolio"
+    badge_html = '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
+else:
+    active_table = "meraki_transactions"
+    entity_prefix = "meraki"
+    entity_name = "Meraki Mahardika Investama"
+    badge_html = '<span class="corp-tag">CORPORATE ENTITY</span>'
+
+# Entity Header Banner
+st.markdown(f"""
+<div class="entity-banner">
+  <div>
+    <div class="entity-subtitle">Active Trading Account</div>
+    <div class="entity-title">{entity_name}</div>
+  </div>
+  <div>{badge_html}</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Top Controls
 ctrl_c1, ctrl_c2 = st.columns([3, 1])
 with ctrl_c1:
-    cost_method = st.radio("Accounting Method", ["AVG", "FIFO"], horizontal=True)
+    cost_method = st.radio("Accounting Method", ["AVG", "FIFO"], horizontal=True, key=f"{entity_prefix}_cost_method")
 with ctrl_c2:
-    is_censored = st.toggle("🔒 Privacy Mode", value=False)
+    is_censored = st.toggle("🔒 Privacy Mode", value=False, key=f"{entity_prefix}_privacy")
 
 tab_idx, tab_us = st.tabs(["🇮🇩 Indonesia (IDX)", "🇺🇸 United States (US)"])
 
-def render_market_dashboard(market, currency, buy_universe):
-    tx_res = supabase.table("stock_transactions").select("*").eq("market", market).order("transaction_date", desc=True).execute()
+# 9. Generic Reusable Market Engine
+def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
+    tx_res = supabase.table(db_table).select("*").eq("market", market).order("transaction_date", desc=True).execute()
     transactions = tx_res.data or []
     holdings = compute_holdings(transactions, method=cost_method)
 
@@ -352,7 +419,7 @@ def render_market_dashboard(market, currency, buy_universe):
         </div>
     """, unsafe_allow_html=True)
 
-    # 9. Industry / Sector Breakdown Section
+    # Industry / Sector Breakdown Section
     st.markdown("#### 🏢 Industry Allocation")
     if holdings and total_market_val > 0:
         sector_weights = {}
@@ -361,7 +428,6 @@ def render_market_dashboard(market, currency, buy_universe):
             mkt_v = h["shares"] * live_prices.get(t, h["avg_cost"])
             sector_weights[sec] = sector_weights.get(sec, 0.0) + mkt_v
 
-        # Render Sector Allocation Pills
         pills_html = '<div class="sector-container"><div style="margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: #94a3b8;">SECTOR EXPOSURE:</div>'
         for sec, val in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
             pct = (val / total_market_val) * 100
@@ -370,12 +436,11 @@ def render_market_dashboard(market, currency, buy_universe):
         pills_html += '</div>'
         st.markdown(pills_html, unsafe_allow_html=True)
     else:
-        st.caption("Industry allocation will compute automatically when stocks are held.")
+        st.caption("Industry allocation will compute automatically when positions exist.")
 
-    # 10. Categorized Portfolio Holdings Section
-    st.markdown("#### 💼 Portfolio Holdings (Grouped by Industry)")
+    # Portfolio Holdings Section
+    st.markdown("#### 💼 Holdings (Grouped by Industry)")
     if holdings:
-        # Group tickers by sector
         grouped_by_sector = {}
         for t, h in holdings.items():
             sec = holding_sectors.get(t, "Diversified / Other")
@@ -383,7 +448,6 @@ def render_market_dashboard(market, currency, buy_universe):
                 grouped_by_sector[sec] = []
             grouped_by_sector[sec].append((t, h))
 
-        # Render each sector group
         for sec, items in grouped_by_sector.items():
             sec_total_val = sum(h["shares"] * live_prices[t] for t, h in items)
             sec_weight = (sec_total_val / total_market_val * 100) if total_market_val > 0 else 0
@@ -424,26 +488,26 @@ def render_market_dashboard(market, currency, buy_universe):
                 """, unsafe_allow_html=True)
             st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
     else:
-        st.info("No active positions in this market.")
+        st.info("No active positions held in this account.")
 
-    # Transaction Form
+    # Transaction Form (Isolated Keys per Entity)
     with st.expander("➕ Log New Transaction (BUY / SELL)"):
-        f_type = st.selectbox("Order Type", ["BUY", "SELL"], key=f"f_type_{market}")
-        f_ticker = st.text_input("Ticker Symbol", placeholder="e.g. BMRI, AAPL", key=f"f_tick_{market}").upper().strip()
-        f_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, step=1.0, key=f"f_qty_{market}")
-        f_price = st.number_input(f"Execution Price ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{market}")
+        f_type = st.selectbox("Order Type", ["BUY", "SELL"], key=f"f_type_{p_prefix}_{market}")
+        f_ticker = st.text_input("Ticker Symbol", placeholder="e.g. BMRI, AAPL", key=f"f_tick_{p_prefix}_{market}").upper().strip()
+        f_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, step=1.0, key=f"f_qty_{p_prefix}_{market}")
+        f_price = st.number_input(f"Execution Price ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{p_prefix}_{market}")
 
         shares = f_qty * 100 if market == "IDX" else f_qty
         trade_total = shares * f_price
         st.caption(f"Gross Transaction Value: {trade_total:,.2f} {currency}")
 
-        if st.button("Submit Order", key=f"f_btn_{market}"):
+        if st.button("Submit Order", key=f"f_btn_{p_prefix}_{market}"):
             if not f_ticker:
                 st.error("Please specify a ticker symbol.")
             elif f_type == "SELL" and holdings.get(f_ticker, {}).get("shares", 0) < shares:
                 st.error("Cannot sell more shares than currently held.")
             else:
-                supabase.table("stock_transactions").insert({
+                supabase.table(db_table).insert({
                     "market": market,
                     "ticker": f_ticker,
                     "type": f_type,
@@ -451,13 +515,13 @@ def render_market_dashboard(market, currency, buy_universe):
                     "price_per_share": f_price,
                     "fee": 0
                 }).execute()
-                st.success(f"Recorded {f_type} order for {f_ticker}.")
+                st.success(f"Recorded {f_type} order for {f_ticker} in {entity_name}.")
                 st.rerun()
 
-    # Edit / Delete Misinputs
+    # Edit / Delete Misinputs (Isolated Keys per Entity)
     with st.expander("🛠️ Modify Past Transactions"):
         if not transactions:
-            st.caption("No trade records found.")
+            st.caption("No trade records found for this account.")
         else:
             def format_tx_label(tx):
                 date_str = tx["transaction_date"][:16].replace("T", " ")
@@ -465,22 +529,22 @@ def render_market_dashboard(market, currency, buy_universe):
                 return f"{date_str} | {tx['type']} {qty_dsp} {tx['ticker']} @ {tx['price_per_share']:,.2f}"
 
             tx_map = {format_tx_label(tx): tx for tx in transactions}
-            selected_label = st.selectbox("Select Record", list(tx_map.keys()), key=f"sel_{market}")
+            selected_label = st.selectbox("Select Record", list(tx_map.keys()), key=f"sel_{p_prefix}_{market}")
             selected_tx = tx_map[selected_label]
 
             curr_units = selected_tx["shares"] / 100 if market == "IDX" else selected_tx["shares"]
             e1, e2 = st.columns(2)
             with e1:
-                e_type = st.selectbox("Type", ["BUY", "SELL"], index=0 if selected_tx["type"] == "BUY" else 1, key=f"e_type_{market}")
-                e_ticker = st.text_input("Ticker", value=selected_tx["ticker"], key=f"e_tick_{market}").upper().strip()
+                e_type = st.selectbox("Type", ["BUY", "SELL"], index=0 if selected_tx["type"] == "BUY" else 1, key=f"e_type_{p_prefix}_{market}")
+                e_ticker = st.text_input("Ticker", value=selected_tx["ticker"], key=f"e_tick_{p_prefix}_{market}").upper().strip()
             with e2:
-                e_qty = st.number_input("Units", min_value=1.0, value=float(curr_units), step=1.0, key=f"e_qty_{market}")
-                e_price = st.number_input("Price", min_value=0.01, value=float(selected_tx["price_per_share"]), key=f"e_pr_{market}")
+                e_qty = st.number_input("Units", min_value=1.0, value=float(curr_units), step=1.0, key=f"e_qty_{p_prefix}_{market}")
+                e_price = st.number_input("Price", min_value=0.01, value=float(selected_tx["price_per_share"]), key=f"e_pr_{p_prefix}_{market}")
 
             new_shares = e_qty * 100 if market == "IDX" else e_qty
             b_save, b_del = st.columns(2)
-            if b_save.button("💾 Save Update", key=f"btn_s_{market}"):
-                supabase.table("stock_transactions").update({
+            if b_save.button("💾 Save Update", key=f"btn_s_{p_prefix}_{market}"):
+                supabase.table(db_table).update({
                     "ticker": e_ticker,
                     "type": e_type,
                     "shares": new_shares,
@@ -489,8 +553,8 @@ def render_market_dashboard(market, currency, buy_universe):
                 st.success("Updated.")
                 st.rerun()
 
-            if b_del.button("🗑️ Delete Record", key=f"btn_d_{market}"):
-                supabase.table("stock_transactions").delete().eq("id", selected_tx["id"]).execute()
+            if b_del.button("🗑️ Delete Record", key=f"btn_d_{p_prefix}_{market}"):
+                supabase.table(db_table).delete().eq("id", selected_tx["id"]).execute()
                 st.warning("Deleted.")
                 st.rerun()
 
@@ -540,7 +604,7 @@ def render_market_dashboard(market, currency, buy_universe):
     if not has_sell:
         st.caption("No sell or take-profit triggers tripped for current holdings.")
 
-# Screener Picks
+# Screened universes
 idx_buys = [
     {"ticker": "BMRI", "setup": "Pullback to 20-Day EMA", "fundamentals": "ROE 18.2%, PBV 2.1x, Net Profit Growth +14% YoY", "technicals": "Holding 20 EMA support at Rp 6,850; RSI 48 curling upwards.", "entry": "Rp 6,800 - 6,900", "target": "Rp 7,450 (+8.5%)", "stop": "Rp 6,600 (-3.8%)"},
     {"ticker": "TLKM", "setup": "Value Rebound from Support", "fundamentals": "ROE 17.5%, PBV 2.4x, Dividend Yield 5.1%", "technicals": "Double-bottom setup on daily chart; MACD bullish crossover.", "entry": "Rp 2,850 - 2,900", "target": "Rp 3,180 (+10.2%)", "stop": "Rp 2,750 (-4.1%)"}
@@ -552,7 +616,7 @@ us_buys = [
 ]
 
 with tab_idx:
-    render_market_dashboard("IDX", "IDR", idx_buys)
+    render_market_dashboard("IDX", "IDR", idx_buys, active_table, entity_prefix)
 
 with tab_us:
-    render_market_dashboard("US", "USD", us_buys)
+    render_market_dashboard("US", "USD", us_buys, active_table, entity_prefix)
