@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import time
 from supabase import create_client
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
@@ -12,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. Auto-refresh every 15 seconds
+# 2. Auto-refresh every 15 seconds (Acts as a price poller and security heartbeat)
 st_autorefresh(interval=15000, key="datarefresh")
 
 # 3. FinTech Glassmorphism Design System (CSS Injection)
@@ -29,6 +30,7 @@ st.markdown("""
     color: #f1f5f9;
   }
 
+  /* Entity Switcher Header Banner */
   .entity-banner {
     background: linear-gradient(90deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -56,6 +58,7 @@ st.markdown("""
     letter-spacing: 0.05em;
   }
 
+  /* Frosted Glass KPI Cards */
   .kpi-card {
     background: rgba(22, 28, 45, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -81,6 +84,7 @@ st.markdown("""
     margin-top: 0.35rem;
   }
 
+  /* Stock Holding Cards */
   .stock-card {
     background: rgba(20, 26, 42, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -96,6 +100,7 @@ st.markdown("""
     transform: translateY(-2px);
   }
 
+  /* Sector Summary Container */
   .sector-container {
     background: rgba(18, 24, 40, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -165,6 +170,19 @@ st.markdown("""
     letter-spacing: 0.05em;
   }
 
+  /* Glassmorphic Login Gateway Card */
+  .auth-card {
+    background: rgba(22, 28, 45, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    max-width: 460px;
+    margin: 3rem auto;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+    text-align: center;
+  }
+
   div[data-testid="stExpander"] {
     background: rgba(18, 24, 38, 0.5) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -194,10 +212,17 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# 5. Master Constants for Meraki
+# 5. Master Constants
 MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
 MERAKI_BROKERS_IDX = ["Stockbit", "SimInvest", "Mirae", "growin'", "Ajaib"]
 MERAKI_BROKERS_US = ["Ajaib", "Pluang", "Interactive Brokers", "Other"]
+
+# Explicit Entity Passwords & Inactivity Duration
+PASSWORDS = {
+    "pers": "Janardana2001Abin!",
+    "meraki": "Upin7Ipin!"
+}
+INACTIVITY_TIMEOUT = 600  # 10 minutes in seconds
 
 # 6. Cached Sector Lookup (24h Cache)
 @st.cache_data(ttl=86400)
@@ -252,8 +277,6 @@ def compute_holdings(transactions, method="AVG", is_corporate=False):
     for ticker, group in df_tx.groupby("ticker"):
         total_shares = 0.0
         total_cost = 0.0
-        
-        # Track sub-account balances per trader and broker
         sub_accounts = {}
         buy_lots = []
         
@@ -289,7 +312,6 @@ def compute_holdings(transactions, method="AVG", is_corporate=False):
                             buy_lots[0]["shares"] -= rem_sell
                             rem_sell = 0
 
-        # Eliminate float drift
         if total_shares <= 0.0001:
             total_shares = 0.0
             total_cost = 0.0
@@ -301,7 +323,6 @@ def compute_holdings(transactions, method="AVG", is_corporate=False):
                 effective_avg_cost = rem_cost / total_shares if total_shares > 0 else 0
                 total_cost = rem_cost
 
-            # Format active sub-account breakdown
             breakdown = []
             for (trd, brk), shrs in sub_accounts.items():
                 if shrs > 0.0001:
@@ -349,11 +370,11 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 9. Top Navigation & Workspace Routing
+# 9. Top Navigation & Workspace Selection
 st.markdown("""
 <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.25rem;">
   <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: #f8fafc;">⚡ FinTech Terminal</span>
-  <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Multi-Entity Portfolio Hub</span>
+  <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Zero-Trust Portfolio Hub</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -365,18 +386,55 @@ entity_choice = st.radio(
 )
 
 is_meraki = (entity_choice == "🏛️ Meraki Mahardika Investama")
+entity_prefix = "meraki" if is_meraki else "pers"
+active_table = "meraki_transactions" if is_meraki else "stock_transactions"
+entity_name = "Meraki Mahardika Investama" if is_meraki else "Personal Portfolio"
+badge_html = '<span class="corp-tag">CORPORATE ENTITY</span>' if is_meraki else '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
 
-if is_meraki:
-    active_table = "meraki_transactions"
-    entity_prefix = "meraki"
-    entity_name = "Meraki Mahardika Investama"
-    badge_html = '<span class="corp-tag">CORPORATE ENTITY</span>'
-else:
-    active_table = "stock_transactions"
-    entity_prefix = "pers"
-    entity_name = "Personal Portfolio"
-    badge_html = '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
+# Session State Keys
+auth_key = f"{entity_prefix}_is_authenticated"
+time_key = f"{entity_prefix}_last_activity"
 
+# Check Inactivity Timeout (10 minutes)
+if st.session_state.get(auth_key, False):
+    last_act = st.session_state.get(time_key, time.time())
+    elapsed = time.time() - last_act
+    if elapsed > INACTIVITY_TIMEOUT:
+        st.session_state[auth_key] = False
+        st.warning("⚠️ Session expired due to 10 minutes of inactivity. Please re-enter your password.")
+        st.rerun()
+
+# 10. Authentication Gateway (If not authenticated)
+if not st.session_state.get(auth_key, False):
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.markdown(f"""
+            <div class="auth-card">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔒</div>
+              <div style="font-size: 1.25rem; font-weight: 700; color: #f8fafc;">{entity_name}</div>
+              <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px; margin-bottom: 1.5rem;">
+                Protected Terminal · Password Required
+              </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form(key=f"auth_form_{entity_prefix}"):
+            pwd_input = st.text_input("Enter Password", type="password", placeholder="••••••••••••", key=f"pwd_field_{entity_prefix}")
+            submit_login = st.form_submit_button("Unlock Workspace", use_container_width=True)
+            
+            if submit_login:
+                if pwd_input == PASSWORDS[entity_prefix]:
+                    st.session_state[auth_key] = True
+                    st.session_state[time_key] = time.time()
+                    st.success("Access Granted.")
+                    st.rerun()
+                else:
+                    st.error("Incorrect password. Access denied.")
+                    
+    # Strict execution stop: Prevent rendering data or querying tables downstream
+    st.stop()
+
+# 11. Authenticated Workspace Header
 st.markdown(f"""
 <div class="entity-banner">
   <div>
@@ -387,15 +445,19 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-ctrl_c1, ctrl_c2 = st.columns([3, 1])
+ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([3, 1, 1])
 with ctrl_c1:
     cost_method = st.radio("Accounting Method", ["AVG", "FIFO"], horizontal=True, key=f"{entity_prefix}_cost_method")
 with ctrl_c2:
     is_censored = st.toggle("🔒 Privacy Mode", value=False, key=f"{entity_prefix}_privacy")
+with ctrl_c3:
+    if st.button("🔒 Lock Terminal", key=f"lock_btn_{entity_prefix}", use_container_width=True):
+        st.session_state[auth_key] = False
+        st.rerun()
 
 tab_idx, tab_us = st.tabs(["🇮🇩 Indonesia (IDX)", "🇺🇸 United States (US)"])
 
-# 10. Unified Market Rendering Engine
+# 12. Unified Market Rendering Engine
 def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, is_corp):
     tx_res = supabase.table(db_table).select("*").eq("market", market).order("transaction_date", desc=True).execute()
     transactions = tx_res.data or []
@@ -498,7 +560,6 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
                 pnl_str = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
                 badge = "badge-green" if pnl_val >= 0 else "badge-red"
 
-                # Render Sub-Account Badges for Meraki
                 sub_html = ""
                 if is_corp and h.get("breakdown"):
                     sub_html = '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">'
@@ -533,7 +594,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
     else:
         st.info("No active positions held in this account.")
 
-    # Transaction Form with Trader & Broker selection
+    # Transaction Form
     with st.expander("➕ Log New Transaction (BUY / SELL)"):
         col_t1, col_t2 = st.columns(2)
         with col_t1:
@@ -559,10 +620,10 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
         st.caption(f"Gross Transaction Value: {trade_total:,.2f} {currency}")
 
         if st.button("Submit Order", key=f"f_btn_{p_prefix}_{market}"):
+            st.session_state[time_key] = time.time()  # Reset inactivity timer
             if not f_ticker:
                 st.error("Please specify a ticker symbol.")
             elif f_type == "SELL":
-                # Sub-account oversell protection
                 ticker_holding = holdings.get(f_ticker, {})
                 if is_corp:
                     sub_map = ticker_holding.get("sub_account_map", {})
@@ -576,7 +637,6 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
                         st.error("Cannot sell more shares than currently held.")
                         st.stop()
 
-                # Insert validated transaction
                 supabase.table(db_table).insert({
                     "market": market,
                     "ticker": f_ticker,
@@ -645,6 +705,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
             new_shares = e_qty * 100 if market == "IDX" else e_qty
             b_save, b_del = st.columns(2)
             if b_save.button("💾 Save Update", key=f"btn_s_{p_prefix}_{market}"):
+                st.session_state[time_key] = time.time()  # Reset inactivity timer
                 supabase.table(db_table).update({
                     "ticker": e_ticker,
                     "type": e_type,
@@ -657,6 +718,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
                 st.rerun()
 
             if b_del.button("🗑️ Delete Record", key=f"btn_d_{p_prefix}_{market}"):
+                st.session_state[time_key] = time.time()  # Reset inactivity timer
                 supabase.table(db_table).delete().eq("id", selected_tx["id"]).execute()
                 st.warning("Deleted record.")
                 st.rerun()
