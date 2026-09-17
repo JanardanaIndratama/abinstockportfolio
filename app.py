@@ -16,7 +16,7 @@ st.set_page_config(
 # 2. Auto-refresh every 15 seconds
 st_autorefresh(interval=15000, key="datarefresh")
 
-# 3. Google Material You (Material 3) Design System (Centered & Harmonized)
+# 3. Google Material You (Material 3) Design System (Centered & Symmetrical)
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;700&display=swap');
@@ -50,33 +50,30 @@ st.markdown("""
   }
 
   /* ============================================================
-     CENTERED HERO & WORKSPACE SELECTOR STYLING
+     CENTERED HERO & WORKSPACE SELECTOR
      ============================================================ */
 
   .hero-header {
     text-align: center;
-    margin-top: 0.5rem;
-    margin-bottom: 1.25rem;
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
   }
 
   .hero-title {
-    font-size: 1.75rem;
+    font-size: 1.85rem;
     font-weight: 700;
     color: var(--md-sys-color-on-surface);
     letter-spacing: -0.02em;
     margin: 0;
   }
 
-  .hero-subtitle {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--md-sys-color-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-top: 0.35rem;
+  /* Force hide any residual widget label above radio group */
+  div[data-testid="stRadio"] label[data-testid="stWidgetLabel"],
+  div[data-testid="stRadio"] [data-testid="stWidgetLabel"] {
+    display: none !important;
   }
 
-  /* Center Streamlit Radio Group Container */
+  /* Center the Radio Container inside its column */
   div[data-testid="stRadio"] {
     display: flex !important;
     flex-direction: column !important;
@@ -84,10 +81,6 @@ st.markdown("""
     justify-content: center !important;
     width: 100% !important;
     margin: 0 auto 1.5rem auto !important;
-  }
-
-  div[data-testid="stRadio"] > label {
-    display: none !important;
   }
 
   /* Centered Pill Track */
@@ -106,8 +99,8 @@ st.markdown("""
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
   }
 
-  /* Segment Button Items */
-  div[data-testid="stRadio"] label {
+  /* Target ONLY option labels inside the radiogroup */
+  div[data-testid="stRadio"] div[role="radiogroup"] label {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -120,40 +113,44 @@ st.markdown("""
     transition: background-color 0.2s ease, color 0.2s ease !important;
   }
 
-  div[data-testid="stRadio"] label > div:first-child {
+  /* Eliminate the native radio button dot/circle */
+  div[data-testid="stRadio"] div[role="radiogroup"] label > div:first-of-type,
+  div[data-testid="stRadio"] div[role="radiogroup"] label input[type="radio"] + div {
     display: none !important;
   }
 
-  div[data-testid="stRadio"] label div,
-  div[data-testid="stRadio"] label p,
-  div[data-testid="stRadio"] label span {
+  /* Segment Option Text */
+  div[data-testid="stRadio"] div[role="radiogroup"] label div,
+  div[data-testid="stRadio"] div[role="radiogroup"] label p,
+  div[data-testid="stRadio"] div[role="radiogroup"] label span {
     font-size: 0.88rem !important;
     font-weight: 500 !important;
     color: var(--md-sys-color-on-surface-variant) !important;
   }
 
-  div[data-testid="stRadio"] label:hover {
+  div[data-testid="stRadio"] div[role="radiogroup"] label:hover {
     background-color: rgba(255, 255, 255, 0.05) !important;
   }
 
-  div[data-testid="stRadio"] label:hover span,
-  div[data-testid="stRadio"] label:hover p {
+  div[data-testid="stRadio"] div[role="radiogroup"] label:hover span,
+  div[data-testid="stRadio"] div[role="radiogroup"] label:hover p {
     color: #ffffff !important;
   }
 
-  div[data-testid="stRadio"] label:has(input:checked) {
+  /* Active Segment Tonal Container */
+  div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
     background-color: var(--md-sys-color-secondary-container) !important;
   }
 
-  div[data-testid="stRadio"] label:has(input:checked) div,
-  div[data-testid="stRadio"] label:has(input:checked) p,
-  div[data-testid="stRadio"] label:has(input:checked) span {
+  div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) div,
+  div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) p,
+  div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) span {
     color: var(--md-sys-color-on-secondary-container) !important;
     font-weight: 600 !important;
   }
 
   /* ============================================================
-     MATERIAL YOU CARDS & BANNER (CENTERED HARMONY)
+     MATERIAL YOU CARDS & BANNER
      ============================================================ */
 
   .m3-banner-centered {
@@ -321,7 +318,7 @@ st.markdown("""
     border-radius: 28px;
     padding: 2.5rem 2rem;
     max-width: 440px;
-    margin: 3rem auto;
+    margin: 1.5rem auto;
     text-align: center;
   }
 </style>
@@ -494,22 +491,24 @@ def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
 # ============================================================
-# 9. CENTERED HERO & WORKSPACE SELECTOR
+# 9. CENTERED TITLE & WORKSPACE SELECTOR
 # ============================================================
 
 st.markdown("""
 <div class="hero-header">
   <div class="hero-title">Portfolio Terminal</div>
-  <div class="hero-subtitle">Workspace Selector</div>
 </div>
 """, unsafe_allow_html=True)
 
-entity_choice = st.radio(
-    "Workspace Selector",
-    ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
-    horizontal=True,
-    label_visibility="collapsed"
-)
+# Symmetrically center the Workspace Selector in the middle column
+col_w1, col_w2, col_w3 = st.columns([1, 2, 1])
+with col_w2:
+    entity_choice = st.radio(
+        "Workspace Selector",
+        ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
 
 is_meraki = (entity_choice == "🏛️ Meraki Mahardika Investama")
 entity_prefix = "meraki" if is_meraki else "pers"
