@@ -3,3 +3,5 @@ supabase
 yfinance
 pandas
 streamlit-autorefresh
+google-generativeai
+feedparser
