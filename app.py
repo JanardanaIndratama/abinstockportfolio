@@ -16,7 +16,7 @@ st.set_page_config(
 # 2. Auto-refresh every 15 seconds (Acts as a price poller and security heartbeat)
 st_autorefresh(interval=15000, key="datarefresh")
 
-# 3. FinTech Glassmorphism Design System (CSS Injection)
+# 3. Liquid Glass Design System (CSS Injection)
 st.markdown("""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -30,14 +30,126 @@ st.markdown("""
     color: #f1f5f9;
   }
 
-  /* Entity Switcher Header Banner */
+  /* ============================================================
+     LIQUID GLASS SEGMENTED BUTTONS (Portfolio & Accounting)
+     ============================================================ */
+  
+  /* Container for the segmented options */
+  div[data-testid="stRadio"] {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Hide default top labels if they exist */
+  div[data-testid="stRadio"] > label {
+    display: none !important;
+  }
+
+  /* The outer liquid pill track */
+  div[data-testid="stRadio"] > div[role="radiogroup"] {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    padding: 5px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  /* Individual Liquid Glass Button */
+  div[data-testid="stRadio"] label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.11) !important;
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.22), 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-radius: 10px !important;
+    padding: 8px 18px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  /* Specular sheen reflection on top half of button */
+  div[data-testid="stRadio"] label::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 42% !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%) !important;
+    border-radius: 10px 10px 0 0 !important;
+    pointer-events: none !important;
+  }
+
+  /* Hide default circular radio input dot */
+  div[data-testid="stRadio"] label > div:first-child {
+    display: none !important;
+  }
+
+  /* Typography inside button */
+  div[data-testid="stRadio"] label div,
+  div[data-testid="stRadio"] label p,
+  div[data-testid="stRadio"] label span {
+    font-weight: 600 !important;
+    font-size: 0.86rem !important;
+    letter-spacing: 0.015em !important;
+    color: #94a3b8 !important;
+    transition: color 0.2s ease, text-shadow 0.2s ease !important;
+    z-index: 1 !important;
+  }
+
+  /* Hover state */
+  div[data-testid="stRadio"] label:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 100%) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.4), 0 6px 18px rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  div[data-testid="stRadio"] label:hover div,
+  div[data-testid="stRadio"] label:hover p,
+  div[data-testid="stRadio"] label:hover span {
+    color: #f1f5f9 !important;
+  }
+
+  /* Selected / Active State (Liquid Indigo Glow) */
+  div[data-testid="stRadio"] label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.42) 0%, rgba(59, 130, 246, 0.2) 50%, rgba(99, 102, 241, 0.32) 100%) !important;
+    border: 1px solid rgba(165, 180, 252, 0.55) !important;
+    box-shadow: inset 0 1px 2px 0 rgba(255, 255, 255, 0.55), 
+                0 0 20px rgba(99, 102, 241, 0.38), 
+                0 6px 16px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  div[data-testid="stRadio"] label:has(input:checked) div,
+  div[data-testid="stRadio"] label:has(input:checked) p,
+  div[data-testid="stRadio"] label:has(input:checked) span {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.45) !important;
+  }
+
+  /* ============================================================
+     SURFACE & CARD STYLING
+     ============================================================ */
+
   .entity-banner {
-    background: linear-gradient(90deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
+    background: linear-gradient(90deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
     border-radius: 16px;
     padding: 1rem 1.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -51,27 +163,26 @@ st.markdown("""
   }
 
   .entity-subtitle {
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 0.78rem;
+    font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
   }
 
-  /* Frosted Glass KPI Cards */
   .kpi-card {
-    background: rgba(22, 28, 45, 0.65);
+    background: rgba(22, 28, 45, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(16px);
     border-radius: 16px;
     padding: 1.25rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
     margin-bottom: 1rem;
   }
 
   .kpi-title {
-    font-size: 0.825rem;
-    font-weight: 500;
+    font-size: 0.8rem;
+    font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -84,23 +195,21 @@ st.markdown("""
     margin-top: 0.35rem;
   }
 
-  /* Stock Holding Cards */
   .stock-card {
-    background: rgba(20, 26, 42, 0.7);
+    background: rgba(20, 26, 42, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 14px;
     padding: 1.15rem;
     margin-bottom: 0.85rem;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px);
     transition: transform 0.15s ease, border-color 0.15s ease;
   }
 
   .stock-card:hover {
-    border-color: rgba(99, 102, 241, 0.4);
+    border-color: rgba(99, 102, 241, 0.45);
     transform: translateY(-2px);
   }
 
-  /* Sector Summary Container */
   .sector-container {
     background: rgba(18, 24, 40, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -170,7 +279,6 @@ st.markdown("""
     letter-spacing: 0.05em;
   }
 
-  /* Glassmorphic Login Gateway Card */
   .auth-card {
     background: rgba(22, 28, 45, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -194,11 +302,16 @@ st.markdown("""
   div.stButton > button {
     background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
     color: white !important;
-    border: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 10px !important;
     font-weight: 600 !important;
     padding: 0.5rem 1.25rem !important;
-    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3) !important;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+    transition: transform 0.15s ease !important;
+  }
+
+  div.stButton > button:hover {
+    transform: translateY(-1px) !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -217,12 +330,11 @@ MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
 MERAKI_BROKERS_IDX = ["Stockbit", "SimInvest", "Mirae", "growin'", "Ajaib"]
 MERAKI_BROKERS_US = ["Ajaib", "Pluang", "Interactive Brokers", "Other"]
 
-# Explicit Entity Passwords & Inactivity Duration
 PASSWORDS = {
     "pers": "Janardana2001Abin!",
     "meraki": "Upin7Ipin!"
 }
-INACTIVITY_TIMEOUT = 600  # 10 minutes in seconds
+INACTIVITY_TIMEOUT = 600
 
 # 6. Cached Sector Lookup (24h Cache)
 @st.cache_data(ttl=86400)
@@ -370,16 +482,16 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 9. Top Navigation & Workspace Selection
+# 9. Top Navigation & Portfolio Chooser (Liquid Glass Controls)
 st.markdown("""
-<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.25rem;">
+<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.35rem;">
   <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: #f8fafc;">⚡ FinTech Terminal</span>
   <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Zero-Trust Portfolio Hub</span>
 </div>
 """, unsafe_allow_html=True)
 
 entity_choice = st.radio(
-    "Select Workspace:",
+    "Portfolio Chooser",
     ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
     horizontal=True,
     label_visibility="collapsed"
@@ -391,7 +503,6 @@ active_table = "meraki_transactions" if is_meraki else "stock_transactions"
 entity_name = "Meraki Mahardika Investama" if is_meraki else "Personal Portfolio"
 badge_html = '<span class="corp-tag">CORPORATE ENTITY</span>' if is_meraki else '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
 
-# Session State Keys
 auth_key = f"{entity_prefix}_is_authenticated"
 time_key = f"{entity_prefix}_last_activity"
 
@@ -431,10 +542,9 @@ if not st.session_state.get(auth_key, False):
                 else:
                     st.error("Incorrect password. Access denied.")
                     
-    # Strict execution stop: Prevent rendering data or querying tables downstream
     st.stop()
 
-# 11. Authenticated Workspace Header
+# 11. Authenticated Workspace Header & Controls
 st.markdown(f"""
 <div class="entity-banner">
   <div>
@@ -447,7 +557,13 @@ st.markdown(f"""
 
 ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([3, 1, 1])
 with ctrl_c1:
-    cost_method = st.radio("Accounting Method", ["AVG", "FIFO"], horizontal=True, key=f"{entity_prefix}_cost_method")
+    cost_method = st.radio(
+        "Accounting Method",
+        ["AVG", "FIFO"],
+        horizontal=True,
+        key=f"{entity_prefix}_cost_method",
+        label_visibility="collapsed"
+    )
 with ctrl_c2:
     is_censored = st.toggle("🔒 Privacy Mode", value=False, key=f"{entity_prefix}_privacy")
 with ctrl_c3:
@@ -620,7 +736,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
         st.caption(f"Gross Transaction Value: {trade_total:,.2f} {currency}")
 
         if st.button("Submit Order", key=f"f_btn_{p_prefix}_{market}"):
-            st.session_state[time_key] = time.time()  # Reset inactivity timer
+            st.session_state[time_key] = time.time()
             if not f_ticker:
                 st.error("Please specify a ticker symbol.")
             elif f_type == "SELL":
@@ -705,7 +821,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
             new_shares = e_qty * 100 if market == "IDX" else e_qty
             b_save, b_del = st.columns(2)
             if b_save.button("💾 Save Update", key=f"btn_s_{p_prefix}_{market}"):
-                st.session_state[time_key] = time.time()  # Reset inactivity timer
+                st.session_state[time_key] = time.time()
                 supabase.table(db_table).update({
                     "ticker": e_ticker,
                     "type": e_type,
@@ -718,7 +834,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
                 st.rerun()
 
             if b_del.button("🗑️ Delete Record", key=f"btn_d_{p_prefix}_{market}"):
-                st.session_state[time_key] = time.time()  # Reset inactivity timer
+                st.session_state[time_key] = time.time()
                 supabase.table(db_table).delete().eq("id", selected_tx["id"]).execute()
                 st.warning("Deleted record.")
                 st.rerun()
