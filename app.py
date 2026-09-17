@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. Polling every 15 seconds
+# 2. Auto-refresh every 15 seconds
 st_autorefresh(interval=15000, key="datarefresh")
 
 # 3. FinTech Glassmorphism Design System (CSS Injection)
@@ -29,7 +29,6 @@ st.markdown("""
     color: #f1f5f9;
   }
 
-  /* Entity Switcher Header Banner */
   .entity-banner {
     background: linear-gradient(90deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.7) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -57,7 +56,6 @@ st.markdown("""
     letter-spacing: 0.05em;
   }
 
-  /* Frosted Glass KPI Cards */
   .kpi-card {
     background: rgba(22, 28, 45, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -83,7 +81,6 @@ st.markdown("""
     margin-top: 0.35rem;
   }
 
-  /* Stock Holding Cards */
   .stock-card {
     background: rgba(20, 26, 42, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -99,7 +96,6 @@ st.markdown("""
     transform: translateY(-2px);
   }
 
-  /* Sector Summary Container */
   .sector-container {
     background: rgba(18, 24, 40, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -123,7 +119,21 @@ st.markdown("""
     margin-bottom: 0.4rem;
   }
 
-  /* Badges */
+  .sub-badge {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 4px;
+    margin-top: 4px;
+  }
+
   .badge-green {
     background: rgba(16, 185, 129, 0.15);
     color: #10b981;
@@ -155,7 +165,6 @@ st.markdown("""
     letter-spacing: 0.05em;
   }
 
-  /* Form & Expander Polish */
   div[data-testid="stExpander"] {
     background: rgba(18, 24, 38, 0.5) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -164,7 +173,6 @@ st.markdown("""
     margin-bottom: 1rem;
   }
 
-  /* Buttons */
   div.stButton > button {
     background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
     color: white !important;
@@ -173,11 +181,6 @@ st.markdown("""
     font-weight: 600 !important;
     padding: 0.5rem 1.25rem !important;
     box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3) !important;
-  }
-
-  /* Segmented Control Styling */
-  div[data-testid="stRadio"] > div {
-    gap: 0.75rem;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -191,7 +194,12 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# 5. Cached Sector Lookup (24h Cache)
+# 5. Master Constants for Meraki
+MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
+MERAKI_BROKERS_IDX = ["Stockbit", "SimInvest", "Mirae", "growin'", "Ajaib"]
+MERAKI_BROKERS_US = ["Ajaib", "Pluang", "Interactive Brokers", "Other"]
+
+# 6. Cached Sector Lookup (24h Cache)
 @st.cache_data(ttl=86400)
 def fetch_stock_sector(symbol):
     try:
@@ -203,7 +211,7 @@ def fetch_stock_sector(symbol):
         pass
     return "Diversified / Other"
 
-# 6. Real-Time Price Fetcher
+# 7. Real-Time Price Fetcher
 def fetch_realtime_price(symbol):
     try:
         t = yf.Ticker(symbol)
@@ -233,8 +241,8 @@ def fetch_realtime_price(symbol):
         pass
     return None
 
-# 7. Accounting Calculations
-def compute_holdings(transactions, method="AVG"):
+# 8. Multi-Trader & Multi-Broker Accounting Engine
+def compute_holdings(transactions, method="AVG", is_corporate=False):
     if not transactions:
         return {}
     
@@ -242,36 +250,36 @@ def compute_holdings(transactions, method="AVG"):
     holdings = {}
     
     for ticker, group in df_tx.groupby("ticker"):
-        if method == "AVG":
-            total_shares = 0.0
-            total_cost = 0.0
-            for _, row in group.iterrows():
-                shares = float(row["shares"])
-                price = float(row["price_per_share"])
-                if row["type"] == "BUY":
-                    total_cost += (shares * price)
-                    total_shares += shares
-                elif row["type"] == "SELL":
-                    avg_cost = total_cost / total_shares if total_shares > 0 else 0
-                    total_cost -= (shares * avg_cost)
-                    total_shares -= shares
-                    if total_shares <= 0.0001:
-                        total_shares = 0.0
-                        total_cost = 0.0
-            if total_shares > 0.0001:
-                holdings[ticker] = {
-                    "shares": total_shares,
-                    "avg_cost": total_cost / total_shares,
-                    "total_cost": total_cost
-                }
-        else: # FIFO
-            buy_lots = []
-            for _, row in group.iterrows():
-                shares = float(row["shares"])
-                price = float(row["price_per_share"])
-                if row["type"] == "BUY":
+        total_shares = 0.0
+        total_cost = 0.0
+        
+        # Track sub-account balances per trader and broker
+        sub_accounts = {}
+        buy_lots = []
+        
+        for _, row in group.iterrows():
+            shares = float(row["shares"])
+            price = float(row["price_per_share"])
+            trader = row.get("trader") or "Unassigned"
+            broker = row.get("broker") or "Unassigned"
+            sub_key = (trader, broker)
+
+            if sub_key not in sub_accounts:
+                sub_accounts[sub_key] = 0.0
+
+            if row["type"] == "BUY":
+                total_cost += (shares * price)
+                total_shares += shares
+                sub_accounts[sub_key] += shares
+                if method == "FIFO":
                     buy_lots.append({"shares": shares, "unit_cost": price})
-                elif row["type"] == "SELL":
+            elif row["type"] == "SELL":
+                avg_cost = total_cost / total_shares if total_shares > 0 else 0
+                total_cost -= (shares * avg_cost)
+                total_shares -= shares
+                sub_accounts[sub_key] = max(0.0, sub_accounts[sub_key] - shares)
+                
+                if method == "FIFO":
                     rem_sell = shares
                     while rem_sell > 0.0001 and buy_lots:
                         if buy_lots[0]["shares"] <= rem_sell:
@@ -280,14 +288,37 @@ def compute_holdings(transactions, method="AVG"):
                         else:
                             buy_lots[0]["shares"] -= rem_sell
                             rem_sell = 0
-            rem_shares = sum(lot["shares"] for lot in buy_lots)
-            rem_cost = sum(lot["shares"] * lot["unit_cost"] for lot in buy_lots)
-            if rem_shares > 0.0001:
-                holdings[ticker] = {
-                    "shares": rem_shares,
-                    "avg_cost": rem_cost / rem_shares,
-                    "total_cost": rem_cost
-                }
+
+        # Eliminate float drift
+        if total_shares <= 0.0001:
+            total_shares = 0.0
+            total_cost = 0.0
+
+        if total_shares > 0.0001:
+            effective_avg_cost = total_cost / total_shares
+            if method == "FIFO":
+                rem_cost = sum(lot["shares"] * lot["unit_cost"] for lot in buy_lots)
+                effective_avg_cost = rem_cost / total_shares if total_shares > 0 else 0
+                total_cost = rem_cost
+
+            # Format active sub-account breakdown
+            breakdown = []
+            for (trd, brk), shrs in sub_accounts.items():
+                if shrs > 0.0001:
+                    breakdown.append({
+                        "trader": trd,
+                        "broker": brk,
+                        "shares": shrs
+                    })
+
+            holdings[ticker] = {
+                "shares": total_shares,
+                "avg_cost": effective_avg_cost,
+                "total_cost": total_cost,
+                "breakdown": breakdown,
+                "sub_account_map": sub_accounts
+            }
+            
     return holdings
 
 def render_tradingview(symbol):
@@ -318,7 +349,7 @@ def render_tradingview(symbol):
 def mask_value(val_str, is_censored):
     return "••••••••" if is_censored else val_str
 
-# 8. Master Entity Selection (Placed Above Everything)
+# 9. Top Navigation & Workspace Routing
 st.markdown("""
 <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.25rem;">
   <span style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; color: #f8fafc;">⚡ FinTech Terminal</span>
@@ -327,25 +358,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 entity_choice = st.radio(
-    "Select Active Portfolio Workspace:",
+    "Select Workspace:",
     ["👤 Personal Portfolio", "🏛️ Meraki Mahardika Investama"],
     horizontal=True,
     label_visibility="collapsed"
 )
 
-# Route Active Context
-if entity_choice == "👤 Personal Portfolio":
-    active_table = "stock_transactions"
-    entity_prefix = "pers"
-    entity_name = "Personal Portfolio"
-    badge_html = '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
-else:
+is_meraki = (entity_choice == "🏛️ Meraki Mahardika Investama")
+
+if is_meraki:
     active_table = "meraki_transactions"
     entity_prefix = "meraki"
     entity_name = "Meraki Mahardika Investama"
     badge_html = '<span class="corp-tag">CORPORATE ENTITY</span>'
+else:
+    active_table = "stock_transactions"
+    entity_prefix = "pers"
+    entity_name = "Personal Portfolio"
+    badge_html = '<span class="corp-tag" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);">INDIVIDUAL</span>'
 
-# Entity Header Banner
 st.markdown(f"""
 <div class="entity-banner">
   <div>
@@ -356,7 +387,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Top Controls
 ctrl_c1, ctrl_c2 = st.columns([3, 1])
 with ctrl_c1:
     cost_method = st.radio("Accounting Method", ["AVG", "FIFO"], horizontal=True, key=f"{entity_prefix}_cost_method")
@@ -365,11 +395,11 @@ with ctrl_c2:
 
 tab_idx, tab_us = st.tabs(["🇮🇩 Indonesia (IDX)", "🇺🇸 United States (US)"])
 
-# 9. Generic Reusable Market Engine
-def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
+# 10. Unified Market Rendering Engine
+def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, is_corp):
     tx_res = supabase.table(db_table).select("*").eq("market", market).order("transaction_date", desc=True).execute()
     transactions = tx_res.data or []
-    holdings = compute_holdings(transactions, method=cost_method)
+    holdings = compute_holdings(transactions, method=cost_method, is_corporate=is_corp)
 
     live_prices = {}
     holding_sectors = {}
@@ -392,7 +422,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
     net_pnl_pct = (net_pnl / total_cost_basis * 100) if total_cost_basis > 0 else 0
     pnl_class = "badge-green" if net_pnl >= 0 else "badge-red"
 
-    # KPI Header Cards
+    # KPI Top Bar
     disp_val = mask_value(f"{total_market_val:,.2f} {currency}", is_censored)
     disp_cost = mask_value(f"{total_cost_basis:,.2f} {currency}", is_censored)
     disp_pnl = mask_value(f"{net_pnl:+,.2f} ({net_pnl_pct:+.2f}%)", is_censored)
@@ -419,7 +449,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
         </div>
     """, unsafe_allow_html=True)
 
-    # Industry / Sector Breakdown Section
+    # Sector Breakdown
     st.markdown("#### 🏢 Industry Allocation")
     if holdings and total_market_val > 0:
         sector_weights = {}
@@ -468,6 +498,18 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
                 pnl_str = f"{pnl_val:+,.2f} ({pnl_pct:+.2f}%)"
                 badge = "badge-green" if pnl_val >= 0 else "badge-red"
 
+                # Render Sub-Account Badges for Meraki
+                sub_html = ""
+                if is_corp and h.get("breakdown"):
+                    sub_html = '<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">'
+                    sub_html += '<div style="color: #94a3b8; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Ownership & Custody Breakdown:</div>'
+                    sub_html += '<div style="display: flex; flex-wrap: wrap; gap: 4px;">'
+                    for item in h["breakdown"]:
+                        sub_qty = f"{int(item['shares']/100)} Lots" if market == "IDX" else f"{item['shares']} Shares"
+                        masked_sub_qty = mask_value(sub_qty, is_censored)
+                        sub_html += f'<span class="sub-badge">👤 {item["trader"]} · 🏦 {item["broker"]} <strong style="color: #60a5fa; margin-left: 2px;">({masked_sub_qty})</strong></span>'
+                    sub_html += '</div></div>'
+
                 col_target = h_cols[idx_c % 2]
                 col_target.markdown(f"""
                     <div class="stock-card">
@@ -480,22 +522,37 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
                       </div>
                       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
                         <div><span style="color: #64748b;">Live Price:</span> <span style="font-weight: 600;">{curr_p:,.2f}</span></div>
-                        <div><span style="color: #64748b;">Position:</span> <span style="font-weight: 600;">{mask_value(qty_label, is_censored)}</span></div>
+                        <div><span style="color: #64748b;">Total Position:</span> <span style="font-weight: 600;">{mask_value(qty_label, is_censored)}</span></div>
                         <div><span style="color: #64748b;">Avg Cost:</span> <span style="font-weight: 600;">{mask_value(cost_str, is_censored)}</span></div>
                         <div><span style="color: #64748b;">Market Value:</span> <span style="font-weight: 600;">{mask_value(val_str, is_censored)}</span></div>
                       </div>
+                      {sub_html}
                     </div>
                 """, unsafe_allow_html=True)
             st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
     else:
         st.info("No active positions held in this account.")
 
-    # Transaction Form (Isolated Keys per Entity)
+    # Transaction Form with Trader & Broker selection
     with st.expander("➕ Log New Transaction (BUY / SELL)"):
-        f_type = st.selectbox("Order Type", ["BUY", "SELL"], key=f"f_type_{p_prefix}_{market}")
-        f_ticker = st.text_input("Ticker Symbol", placeholder="e.g. BMRI, AAPL", key=f"f_tick_{p_prefix}_{market}").upper().strip()
-        f_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, step=1.0, key=f"f_qty_{p_prefix}_{market}")
-        f_price = st.number_input(f"Execution Price ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{p_prefix}_{market}")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            f_type = st.selectbox("Order Type", ["BUY", "SELL"], key=f"f_type_{p_prefix}_{market}")
+            f_ticker = st.text_input("Ticker Symbol", placeholder="e.g. BMRI, AAPL", key=f"f_tick_{p_prefix}_{market}").upper().strip()
+        with col_t2:
+            if is_corp:
+                f_trader = st.selectbox("Trader / Owner", MERAKI_TRADERS, key=f"f_trader_{p_prefix}_{market}")
+                broker_opts = MERAKI_BROKERS_IDX if market == "IDX" else MERAKI_BROKERS_US
+                f_broker = st.selectbox("Stock Broker Account", broker_opts, key=f"f_broker_{p_prefix}_{market}")
+            else:
+                f_trader = "Personal"
+                f_broker = "Personal"
+
+        col_q1, col_q2 = st.columns(2)
+        with col_q1:
+            f_qty = st.number_input("Quantity (" + ("Lots" if market == "IDX" else "Shares") + ")", min_value=1.0, step=1.0, key=f"f_qty_{p_prefix}_{market}")
+        with col_q2:
+            f_price = st.number_input(f"Execution Price ({currency})", min_value=0.01, step=10.0 if market == "IDX" else 0.5, key=f"f_pr_{p_prefix}_{market}")
 
         shares = f_qty * 100 if market == "IDX" else f_qty
         trade_total = shares * f_price
@@ -504,8 +561,34 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
         if st.button("Submit Order", key=f"f_btn_{p_prefix}_{market}"):
             if not f_ticker:
                 st.error("Please specify a ticker symbol.")
-            elif f_type == "SELL" and holdings.get(f_ticker, {}).get("shares", 0) < shares:
-                st.error("Cannot sell more shares than currently held.")
+            elif f_type == "SELL":
+                # Sub-account oversell protection
+                ticker_holding = holdings.get(f_ticker, {})
+                if is_corp:
+                    sub_map = ticker_holding.get("sub_account_map", {})
+                    avail_shares = sub_map.get((f_trader, f_broker), 0.0)
+                    if avail_shares < shares:
+                        avail_disp = f"{int(avail_shares/100)} Lots" if market == "IDX" else f"{avail_shares} Shares"
+                        st.error(f"Cannot sell: {f_trader} only holds {avail_disp} of {f_ticker} in {f_broker}.")
+                        st.stop()
+                else:
+                    if ticker_holding.get("shares", 0) < shares:
+                        st.error("Cannot sell more shares than currently held.")
+                        st.stop()
+
+                # Insert validated transaction
+                supabase.table(db_table).insert({
+                    "market": market,
+                    "ticker": f_ticker,
+                    "type": f_type,
+                    "shares": shares,
+                    "price_per_share": f_price,
+                    "fee": 0,
+                    "trader": f_trader,
+                    "broker": f_broker
+                }).execute()
+                st.success(f"Recorded {f_type} for {f_ticker} ({f_trader} · {f_broker}).")
+                st.rerun()
             else:
                 supabase.table(db_table).insert({
                     "market": market,
@@ -513,12 +596,14 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
                     "type": f_type,
                     "shares": shares,
                     "price_per_share": f_price,
-                    "fee": 0
+                    "fee": 0,
+                    "trader": f_trader,
+                    "broker": f_broker
                 }).execute()
                 st.success(f"Recorded {f_type} order for {f_ticker} in {entity_name}.")
                 st.rerun()
 
-    # Edit / Delete Misinputs (Isolated Keys per Entity)
+    # Modify Past Transactions
     with st.expander("🛠️ Modify Past Transactions"):
         if not transactions:
             st.caption("No trade records found for this account.")
@@ -526,20 +611,36 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
             def format_tx_label(tx):
                 date_str = tx["transaction_date"][:16].replace("T", " ")
                 qty_dsp = f"{int(tx['shares']/100)} Lots" if market == "IDX" else f"{tx['shares']} Shares"
-                return f"{date_str} | {tx['type']} {qty_dsp} {tx['ticker']} @ {tx['price_per_share']:,.2f}"
+                tag = f" [{tx.get('trader','')} · {tx.get('broker','')}]" if is_corp else ""
+                return f"{date_str} | {tx['type']} {qty_dsp} {tx['ticker']} @ {tx['price_per_share']:,.2f}{tag}"
 
             tx_map = {format_tx_label(tx): tx for tx in transactions}
             selected_label = st.selectbox("Select Record", list(tx_map.keys()), key=f"sel_{p_prefix}_{market}")
             selected_tx = tx_map[selected_label]
 
             curr_units = selected_tx["shares"] / 100 if market == "IDX" else selected_tx["shares"]
+            
             e1, e2 = st.columns(2)
             with e1:
                 e_type = st.selectbox("Type", ["BUY", "SELL"], index=0 if selected_tx["type"] == "BUY" else 1, key=f"e_type_{p_prefix}_{market}")
                 e_ticker = st.text_input("Ticker", value=selected_tx["ticker"], key=f"e_tick_{p_prefix}_{market}").upper().strip()
+                if is_corp:
+                    cur_trader = selected_tx.get("trader") or MERAKI_TRADERS[0]
+                    t_idx = MERAKI_TRADERS.index(cur_trader) if cur_trader in MERAKI_TRADERS else 0
+                    e_trader = st.selectbox("Trader / Owner", MERAKI_TRADERS, index=t_idx, key=f"e_trader_{p_prefix}_{market}")
+                else:
+                    e_trader = "Personal"
+
             with e2:
                 e_qty = st.number_input("Units", min_value=1.0, value=float(curr_units), step=1.0, key=f"e_qty_{p_prefix}_{market}")
                 e_price = st.number_input("Price", min_value=0.01, value=float(selected_tx["price_per_share"]), key=f"e_pr_{p_prefix}_{market}")
+                if is_corp:
+                    b_list = MERAKI_BROKERS_IDX if market == "IDX" else MERAKI_BROKERS_US
+                    cur_broker = selected_tx.get("broker") or b_list[0]
+                    b_idx = b_list.index(cur_broker) if cur_broker in b_list else 0
+                    e_broker = st.selectbox("Stock Broker", b_list, index=b_idx, key=f"e_broker_{p_prefix}_{market}")
+                else:
+                    e_broker = "Personal"
 
             new_shares = e_qty * 100 if market == "IDX" else e_qty
             b_save, b_del = st.columns(2)
@@ -548,17 +649,19 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
                     "ticker": e_ticker,
                     "type": e_type,
                     "shares": new_shares,
-                    "price_per_share": e_price
+                    "price_per_share": e_price,
+                    "trader": e_trader,
+                    "broker": e_broker
                 }).eq("id", selected_tx["id"]).execute()
-                st.success("Updated.")
+                st.success("Updated record.")
                 st.rerun()
 
             if b_del.button("🗑️ Delete Record", key=f"btn_d_{p_prefix}_{market}"):
                 supabase.table(db_table).delete().eq("id", selected_tx["id"]).execute()
-                st.warning("Deleted.")
+                st.warning("Deleted record.")
                 st.rerun()
 
-    # News Section
+    # Holding Catalysts & News
     st.markdown("#### 📰 Holding Catalysts & News")
     if holdings:
         for t in list(holdings.keys())[:4]:
@@ -574,7 +677,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
     else:
         st.caption("Active positions will populate live news feeds.")
 
-    # Recommendations Section
+    # Swing Recommendations
     st.markdown("#### 🎯 Swing Setups (1-2 Week Horizon)")
     st.markdown("##### 🟢 Recommended Buys")
     for pick in buy_universe:
@@ -604,7 +707,7 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix):
     if not has_sell:
         st.caption("No sell or take-profit triggers tripped for current holdings.")
 
-# Screened universes
+# Screened Watchlists
 idx_buys = [
     {"ticker": "BMRI", "setup": "Pullback to 20-Day EMA", "fundamentals": "ROE 18.2%, PBV 2.1x, Net Profit Growth +14% YoY", "technicals": "Holding 20 EMA support at Rp 6,850; RSI 48 curling upwards.", "entry": "Rp 6,800 - 6,900", "target": "Rp 7,450 (+8.5%)", "stop": "Rp 6,600 (-3.8%)"},
     {"ticker": "TLKM", "setup": "Value Rebound from Support", "fundamentals": "ROE 17.5%, PBV 2.4x, Dividend Yield 5.1%", "technicals": "Double-bottom setup on daily chart; MACD bullish crossover.", "entry": "Rp 2,850 - 2,900", "target": "Rp 3,180 (+10.2%)", "stop": "Rp 2,750 (-4.1%)"}
@@ -616,7 +719,7 @@ us_buys = [
 ]
 
 with tab_idx:
-    render_market_dashboard("IDX", "IDR", idx_buys, active_table, entity_prefix)
+    render_market_dashboard("IDX", "IDR", idx_buys, active_table, entity_prefix, is_meraki)
 
 with tab_us:
-    render_market_dashboard("US", "USD", us_buys, active_table, entity_prefix)
+    render_market_dashboard("US", "USD", us_buys, active_table, entity_prefix, is_meraki)
