@@ -398,11 +398,11 @@ if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def run_ai_broker_team(market, holdings, live_prices):
-    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md"""
+    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md with Search Grounding."""
     if not holdings:
         return "No active holdings to analyze. Please log a transaction first."
     
-    # 1. Gather recent news headlines for top holdings
+    # 1. Gather recent news headlines for active holdings
     news_brief = {}
     for ticker in list(holdings.keys())[:5]:
         sym = f"{ticker}.JK" if market == "IDX" else ticker
@@ -424,7 +424,7 @@ def run_ai_broker_team(market, holdings, live_prices):
 
     # 3. Master Orchestration Prompt
     prompt = f"""
-    You are analyst.md orchestrating your research team for the {market} market.
+    You are analyst.md orchestrating your virtual research team for the {market} market.
     
     Current Portfolio Status:
     {portfolio_str}
@@ -433,18 +433,28 @@ def run_ai_broker_team(market, holdings, live_prices):
     {news_str}
 
     Conduct your team briefing step-by-step:
-    1. **economist.md**: Review the current macro/interest rate climate for {market}, sector tailwinds, and risks.
-    2. **stockanalyst.md**: Audit fundamentals (Safety Net rating) and technical momentum (Bullish/Bearish bias) for these positions.
-    3. **analystqa.md**: Play devil's advocate. Challenge assumptions, identify downside risks, and flag warning signs.
-    4. **analyst.md**: Deliver clear, actionable takeaways and risk management instructions for the portfolio owner.
+    1. **economist.md**: Use Google Search to evaluate current real-time macroeconomic context for {market} (Bank Indonesia BI-Rate decisions, USD/IDR currency trends, Federal Reserve FOMC policy, and inflation prints). Highlight upcoming sectors with expansion potential.
+    2. **stockanalyst.md**: Audit fundamentals (assign a Safety Net rating) and technical momentum (Bullish/Bearish bias) for these positions.
+    3. **analystqa.md**: Play devil's advocate. Cross-examine both macro and single-stock assumptions, point out valuation traps, and stress-test downside risks.
+    4. **analyst.md**: Deliver clear, actionable takeaways, profit targets, and stop-loss rules for the portfolio owner.
     """
 
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        # Grounded search execution
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            tools=[{"google_search": {}}]
+        )
         response = model.generate_content(prompt)
         return response.text
-    except Exception as e:
-        return f"⚠️ Unable to generate AI analysis: {str(e)}"
+    except Exception:
+        # Fallback to standard execution if SDK version differs
+        try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"⚠️ Unable to generate AI analysis: {str(e)}"
 
 # 5. Master Constants
 MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
