@@ -398,13 +398,13 @@ if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def run_ai_broker_team(market, holdings, live_prices):
-    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md with Search Grounding."""
+    """Orchestrates analyst.md, economist.md, stockanalyst.md, and analystqa.md."""
     if not holdings:
         return "No active holdings to analyze. Please log a transaction first."
     
-    # 1. Gather recent news headlines for active holdings
+    # 1. Gather recent news headlines (limit to top 3 to prevent timeouts)
     news_brief = {}
-    for ticker in list(holdings.keys())[:5]:
+    for ticker in list(holdings.keys())[:3]:
         sym = f"{ticker}.JK" if market == "IDX" else ticker
         try:
             feed_items = yf.Ticker(sym).news
@@ -433,28 +433,18 @@ def run_ai_broker_team(market, holdings, live_prices):
     {news_str}
 
     Conduct your team briefing step-by-step:
-    1. **economist.md**: Use Google Search to evaluate current real-time macroeconomic context for {market} (Bank Indonesia BI-Rate decisions, USD/IDR currency trends, Federal Reserve FOMC policy, and inflation prints). Highlight upcoming sectors with expansion potential.
+    1. **economist.md**: Evaluate current macroeconomic context for {market} (Bank Indonesia BI-Rate decisions, USD/IDR currency trends, Federal Reserve FOMC policy, and inflation prints). Highlight upcoming sectors with expansion potential.
     2. **stockanalyst.md**: Audit fundamentals (assign a Safety Net rating) and technical momentum (Bullish/Bearish bias) for these positions.
     3. **analystqa.md**: Play devil's advocate. Cross-examine both macro and single-stock assumptions, point out valuation traps, and stress-test downside risks.
     4. **analyst.md**: Deliver clear, actionable takeaways, profit targets, and stop-loss rules for the portfolio owner.
     """
 
     try:
-        # Grounded search execution
-        model = genai.GenerativeModel(
-            model_name="gemini-3.8-flash",
-            tools=[{"google_search": {}}]
-        )
+        model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         return response.text
-    except Exception:
-        # Fallback to standard execution if SDK version differs
-        try:
-            model = genai.GenerativeModel("gemini-3.8-flash")
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"⚠️ Unable to generate AI analysis: {str(e)}"
+    except Exception as e:
+        return f"⚠️ Unable to generate AI analysis: {str(e)}"
 
 # 5. Master Constants
 MERAKI_TRADERS = ["Abin", "Fery", "Osi", "Eisha"]
@@ -986,13 +976,27 @@ def render_market_dashboard(market, currency, buy_universe, db_table, p_prefix, 
     else:
         st.caption("Active positions will populate live news feeds.")
 
-    # AI Broker Team Briefing Module (analyst.md)
+    # AI Broker Team Briefing Module (analyst.md) - Fixed State Persistence
     st.markdown("#### 🤖 AI Broker Team (analyst.md)")
-    with st.expander("⚡ Request Portfolio Briefing & Stress Test", expanded=False):
-        if st.button(f"Summon Analyst Team ({market})", key=f"run_ai_{p_prefix}_{market}"):
-            with st.spinner("analyst.md is delegating to economist, stock analyst, and QA..."):
-                report = run_ai_broker_team(market, holdings, live_prices)
-                st.markdown(report)
+    ai_report_key = f"ai_report_{p_prefix}_{market}"
+    is_report_available = ai_report_key in st.session_state and bool(st.session_state[ai_report_key])
+
+    with st.expander("⚡ Request Portfolio Briefing & Stress Test", expanded=is_report_available):
+        col_act1, col_act2 = st.columns([3, 1])
+        with col_act1:
+            if st.button(f"Summon Analyst Team ({market})", key=f"run_ai_{p_prefix}_{market}", use_container_width=True):
+                st.session_state[time_key] = time.time()
+                with st.spinner("analyst.md is delegating to economist, stock analyst, and QA..."):
+                    result_text = run_ai_broker_team(market, holdings, live_prices)
+                    st.session_state[ai_report_key] = result_text
+                    st.rerun()
+        with col_act2:
+            if is_report_available and st.button("🗑️ Clear", key=f"clear_ai_{p_prefix}_{market}", use_container_width=True):
+                st.session_state.pop(ai_report_key, None)
+                st.rerun()
+
+        if is_report_available:
+            st.markdown(st.session_state[ai_report_key])
 
     # Swing Recommendations
     st.markdown("#### 🎯 Swing Setups (1-2 Week Horizon)")
